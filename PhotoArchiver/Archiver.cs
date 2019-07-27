@@ -200,6 +200,7 @@ namespace PhotoArchiver
                 case ".mp4":
                 case ".mpg":
                 case ".mov":
+                case ".avi":
                     {
                         if (TryParseDate(file.Name, out var date))
                             return date;
