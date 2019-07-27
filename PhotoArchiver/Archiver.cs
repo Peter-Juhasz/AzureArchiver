@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-
+using MetadataExtractor.Formats.QuickTime;
 using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -198,9 +199,19 @@ namespace PhotoArchiver
                     break;
 
                 case ".mp4":
-                case ".mpg":
                 case ".mov":
-                case ".avi":
+                    {
+                        using var stream = file.OpenRead();
+                        var metadata = QuickTimeMetadataReader.ReadMetadata(stream);
+                        var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
+                        if (tag != null)
+                        {
+                            return DateTime.ParseExact(tag.Description, "ddd MMM dd HH:mm:ss yyyy", new CultureInfo("en-us"));
+                        }
+                    }
+                    break;
+
+                case ".mpg":
                     {
                         if (TryParseDate(file.Name, out var date))
                             return date;

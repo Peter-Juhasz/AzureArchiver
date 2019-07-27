@@ -54,12 +54,13 @@ Or in CLI arguments:
 ## Information
 
 Supported file types:
- - Photos (with EXIF or date in file name)
+ - Photos
     - Any JPEG with EXIF
 	- Android
 	- Office Lens
 	- Windows Phone
- - Videos (with date in file name)
+ - Videos
+	- Any video with Quick Time metadata (.MOV, .MP4)
     - Android (.MP4)
     - Windows Phone (.MP4)
  - RAW (with matching JPEG or date in file name)
@@ -92,4 +93,5 @@ Requirements:
    - Also, that the files are not in use anywhere else.
 
 ## Special thanks
+ - [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) library for reading metadata from videos
  - [SixLabors ImageSharp](https://github.com/SixLabors/ImageSharp) library for reading EXIF data
