@@ -23,12 +23,12 @@ namespace PhotoArchiver
             ILogger<Archiver> logger
         )
         {
-            Options = options;
+            Options = options.Value;
             Client = client;
             Logger = logger;
         }
 
-        public IOptions<Options> Options { get; }
+        public Options Options { get; }
         public CloudBlobClient Client { get; }
         public ILogger<Archiver> Logger { get; }
 
@@ -43,7 +43,7 @@ namespace PhotoArchiver
         public async Task<ArchiveResult> ArchiveAsync(string path)
         {
             var directory = new DirectoryInfo(path);
-            var container = Client.GetContainerReference(Options.Value.Container);
+            var container = Client.GetContainerReference(Options.Container);
 
             var results = new List<FileUploadResult>();
 
@@ -110,7 +110,17 @@ namespace PhotoArchiver
                     return UploadResult.FileHashMismatch;
                 }
 
-                // otherwise, match
+                // archive, if not archived yet
+                if (Options.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
+                {
+                    await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
+                }
+
+                if (Options.Delete)
+                {
+                    file.Delete();
+                }
+
                 return UploadResult.AlreadyExists;
             }
 
@@ -118,13 +128,13 @@ namespace PhotoArchiver
             await blob.UploadFromFileAsync(file.FullName);
 
             // archive
-            if (Options.Value.Archive)
+            if (Options.Archive)
             {
                 await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
             }
 
             // delete
-            if (Options.Value.Delete)
+            if (Options.Delete)
             {
                 file.Delete();
             }
