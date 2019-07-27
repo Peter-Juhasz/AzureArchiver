@@ -205,6 +205,12 @@ namespace PhotoArchiver
                             return date;
                     }
                     break;
+
+                case ".thm":
+                    var mpg = new FileInfo(Path.ChangeExtension(file.FullName, ".mpg"));
+                    if (mpg.Exists)
+                        return await GetDateAsync(mpg);
+                    break;
             }
 
             if (TryParseDate(file.Name, out var dt))
