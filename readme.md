@@ -10,14 +10,16 @@ Requirements:
  - [.NET Core 2.2](https://dotnet.microsoft.com/download)
 
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll"
+.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
 ```
 
-or 
+On Linux:
 
 ```sh
-dotnet PhotoArchiver.dll --Path "D:\OneDrive\Camera Roll"
+dotnet PhotoArchiver.dll --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
 ```
+
+You can also save your connection string to a configuration file. See below.
 
 ## Configuration
 
@@ -25,13 +27,20 @@ Configuration is based on the .NET Standard library and reads from JSON file and
 
 So you can set the configuration in `appsettings.json`:
  - `ConnectionString`: the connection string for your Azure Storage
- - `Container` (default `"photos"`): the name of the container to upload files to
  - `Archive` (default `true`): archive files after upload
+ - `Container` (default `"photos"`): the name of the container to upload files to
+ - `Delete` (default `false`): delete files after successful upload
 
-or in CLI arguments:
+For example:
+```json
+{
+	"ConnectionString": "SECRET"
+}
+```
 
+Or in CLI arguments:
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Archive false
+.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Archive false --Delete true
 ```
 
 ## Information

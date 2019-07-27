@@ -123,6 +123,12 @@ namespace PhotoArchiver
                 await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
             }
 
+            // delete
+            if (Options.Value.Delete)
+            {
+                file.Delete();
+            }
+
             return UploadResult.Uploaded;
         }
 
