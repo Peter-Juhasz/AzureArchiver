@@ -7,14 +7,18 @@ This app uploads your files like `IMG_20190727_123456.jpg` to a container `photo
 ## Usage
 
 Requirements:
- - [.NET Core 2.2](https://dotnet.microsoft.com/download)
+ - [Microsoft Azure subscription](https://azure.microsoft.com/)
+   - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
+ - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
+Download [here from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
+
+Run on Windows:
 ```ps
 .\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
 ```
 
-On Linux:
-
+Run on Linux:
 ```sh
 dotnet PhotoArchiver.dll --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
 ```
@@ -58,8 +62,19 @@ Supported file types:
 	- Nikon Electric Format (.NEF)
 	- Canon Raw Version 2 (.CR2)
 
+A single file is uploaded at a time.
+
 ## Development
 
 Requirements:
  - Visual Studio 2019 Preview
  - .NET Core SDK 2.2
+
+## Troubleshooting
+
+ - Make sure you have a valid key for your Storage Account. You can try it in another tool like Storage Explorer.
+ - Make sure your Storage Account is accessible from your network. You can check this on the Firewall tab of your Storage Account.
+ - If you want to archive blobs, make sure your Storage Account is the new kind (GPv2 or Blob), so it supports blob level tiers.
+ - Make sure you (and this application) have at least Read permission to the folder you want to upload.
+   - If you want to delete the files as well, make sure you have Delete permission.
+   - Also, that the files are not in use anywhere else.
