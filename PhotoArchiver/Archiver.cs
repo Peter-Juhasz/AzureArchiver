@@ -5,14 +5,16 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using MetadataExtractor.Formats.QuickTime;
+
 using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using MetadataExtractor.Formats.QuickTime;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.MetaData.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
+using MetadataExtractor;
 
 namespace PhotoArchiver
 {
@@ -183,6 +185,17 @@ namespace PhotoArchiver
                     break;
 
                 case ".cr2":
+                    {
+                        using var stream = file.OpenRead();
+                        var metadata = ImageMetadataReader.ReadMetadata(stream);
+                        var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
+                        if (tag != null)
+                        {
+                            return ParseExifDateTime(tag.Description);
+                        }
+                    }
+                    break;
+
                 case ".nef":
                 case ".dng":
                     var jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg"));
@@ -295,12 +308,16 @@ namespace PhotoArchiver
                 return false;
             }
 
-            var value = exifValue.ToString()
-                .Remove(4, 1).Insert(4, ".")
-                .Remove(7, 1).Insert(7, ".")
-                .Insert(10, ".");
-
-            return DateTime.TryParse(value, out result);
+            result = ParseExifDateTime(exifValue.ToString());
+            return true;
         }
+
+        private static DateTime ParseExifDateTime(string exifValue) =>
+            DateTime.Parse(
+                exifValue
+                    .Remove(4, 1).Insert(4, ".")
+                    .Remove(7, 1).Insert(7, ".")
+                    .Insert(10, ".")
+            );
     }
 }
