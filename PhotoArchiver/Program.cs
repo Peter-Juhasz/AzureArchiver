@@ -61,7 +61,7 @@ namespace PhotoArchiver
             var failed = result.Results.Where(r => !r.Result.IsSuccessful());
 
             logger.LogInformation($"{succeeded.Count()} succeeded, {failed.Count()} failed");
-            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName))));
+            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName, f.Error?.Message))));
         }
     }
 }

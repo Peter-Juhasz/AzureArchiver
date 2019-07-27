@@ -95,7 +95,7 @@ namespace PhotoArchiver
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, $"Failed to process {file}");
-                    results.Add(new FileUploadResult(file, UploadResult.Error));
+                    results.Add(new FileUploadResult(file, UploadResult.Error, ex));
                 }
             }
 
