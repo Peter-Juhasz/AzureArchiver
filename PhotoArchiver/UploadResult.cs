@@ -6,6 +6,12 @@
         FileHashMismatch,
         AlreadyExists,
         Uploaded,
-        DateMissing
+        DateMissing,
+        Error,
+    }
+
+    public static partial class Extensions
+    {
+        public static bool IsSuccessful(this UploadResult result) => result == UploadResult.Uploaded || result == UploadResult.AlreadyExists;
     }
 }

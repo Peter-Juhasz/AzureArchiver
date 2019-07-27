@@ -32,12 +32,22 @@ namespace PhotoArchiver
         public CloudBlobClient Client { get; }
         public ILogger<Archiver> Logger { get; }
 
-        private static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             { ".jpg", "image/jpeg" },
             { ".mp4", "video/mp4" },
             { ".nef", "image/nef" },
             { ".dng", "image/dng" },
+        };
+
+        private static readonly IReadOnlyDictionary<UploadResult, LogLevel> UploadResultLogLevelMap = new Dictionary<UploadResult, LogLevel>()
+        {
+            { UploadResult.AlreadyExists, LogLevel.Information },
+            { UploadResult.DateMissing, LogLevel.Warning },
+            { UploadResult.Error, LogLevel.Error },
+            { UploadResult.FileHashMismatch, LogLevel.Warning },
+            { UploadResult.FileSizeMismatch, LogLevel.Warning },
+            { UploadResult.Uploaded, LogLevel.Information },
         };
 
         public async Task<ArchiveResult> ArchiveAsync(string path)
@@ -50,36 +60,40 @@ namespace PhotoArchiver
             // enumerate files in directory
             foreach (var file in directory.GetFiles("*", SearchOption.TopDirectoryOnly))
             {
-                // read date
-                var date = await GetDateAsync(file);
-                if (date == null)
+                try
                 {
-                    results.Add(new FileUploadResult(file, UploadResult.DateMissing));
-                    Logger.LogError($"Missing date: {file.Name}");
-                    continue;
+                    Logger.LogTrace($"Processing {file}...");
+
+                    // read date
+                    var date = await GetDateAsync(file);
+                    if (date == null)
+                    {
+                        results.Add(new FileUploadResult(file, UploadResult.DateMissing));
+                        Logger.Log(UploadResultLogLevelMap[UploadResult.DateMissing], $"{UploadResult.DateMissing}\t{file.Name}");
+                        continue;
+                    }
+
+                    var blobDirectory = container
+                        .GetDirectoryReference(date.Value.Year.ToString())
+                        .GetDirectoryReference(date.Value.Month.ToString().PadLeft(2, '0'))
+                        .GetDirectoryReference(date.Value.Day.ToString().PadLeft(2, '0'));
+                    var blob = blobDirectory.GetBlockBlobReference(file.Name);
+
+                    // set metadata
+                    if (MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                        blob.Properties.ContentType = mimeType;
+
+                    // upload
+                    var result = await UploadCoreAsync(blob, file);
+                    results.Add(new FileUploadResult(file, result));
+
+                    // log
+                    Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
                 }
-                
-                var blobDirectory = container
-                    .GetDirectoryReference(date.Value.Year.ToString())
-                    .GetDirectoryReference(date.Value.Month.ToString().PadLeft(2, '0'))
-                    .GetDirectoryReference(date.Value.Day.ToString().PadLeft(2, '0'));
-                var blob = blobDirectory.GetBlockBlobReference(file.Name);
-
-                // set metadata
-                if (MimeTypes.TryGetValue(file.Extension, out var mimeType))
-                    blob.Properties.ContentType = mimeType;
-
-                // upload
-                var result = await UploadCoreAsync(blob, file);
-                results.Add(new FileUploadResult(file, result));
-
-                // log
-                switch (result)
+                catch (Exception ex)
                 {
-                    case UploadResult.FileSizeMismatch: Logger.LogError($"Size mismatch: {file.Name}"); break;
-                    case UploadResult.FileHashMismatch: Logger.LogError($"Hash mismatch: {file.Name}"); break;
-                    case UploadResult.AlreadyExists: Logger.LogWarning($"Already exists: {file.Name}"); break;
-                    case UploadResult.Uploaded: Logger.LogInformation($"Uploaded: {file.Name}"); break;
+                    Logger.LogError(ex, $"Failed to process {file}");
+                    results.Add(new FileUploadResult(file, UploadResult.Error));
                 }
             }
 
@@ -89,8 +103,10 @@ namespace PhotoArchiver
         private async Task<UploadResult> UploadCoreAsync(CloudBlockBlob blob, FileInfo file)
         {
             // check for exists
+            Logger.LogTrace($"Checking for {file} exists...");
             if (await blob.ExistsAsync())
             {
+                Logger.LogTrace($"Fetching attributes for {blob}...");
                 await blob.FetchAttributesAsync();
 
                 // compare file size
@@ -100,6 +116,7 @@ namespace PhotoArchiver
                 }
 
                 // compare hash
+                Logger.LogTrace($"Computing MD5 hash for {file}...");
                 var reference = Convert.FromBase64String(blob.Properties.ContentMD5);
                 using var alg = MD5.Create();
                 using var stream = file.OpenRead();
@@ -113,11 +130,13 @@ namespace PhotoArchiver
                 // archive, if not archived yet
                 if (Options.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
                 {
+                    Logger.LogTrace($"Archiving {blob}...");
                     await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
                 }
 
                 if (Options.Delete)
                 {
+                    Logger.LogTrace($"Deleting {file}...");
                     file.Delete();
                 }
 
@@ -125,25 +144,30 @@ namespace PhotoArchiver
             }
 
             // upload
+            Logger.LogTrace($"Uploading {file}...");
             await blob.UploadFromFileAsync(file.FullName);
 
             // archive
             if (Options.Archive)
             {
+                Logger.LogTrace($"Archiving {blob}...");
                 await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
             }
 
             // delete
             if (Options.Delete)
             {
+                Logger.LogTrace($"Deleting {file}...");
                 file.Delete();
             }
 
             return UploadResult.Uploaded;
         }
 
-        private static async Task<DateTime?> GetDateAsync(FileInfo file)
+        private async Task<DateTime?> GetDateAsync(FileInfo file)
         {
+            Logger.LogTrace($"Reading date for {file}...");
+
             switch (file.Extension.ToLower())
             {
                 case ".jpg":

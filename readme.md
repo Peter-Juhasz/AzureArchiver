@@ -11,7 +11,7 @@ Requirements:
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
-Download [here from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
+Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
 
 Run on Windows:
 ```ps
@@ -57,7 +57,7 @@ Supported file types:
  - Videos (with date in file name)
     - Android (.MP4)
     - Windows Phone (.MP4)
- - RAW (with matching JPEG)
+ - RAW (with matching JPEG or date in file name)
 	- Digital Negative (.DNG), Windows Phone RAW
 	- Nikon Electric Format (.NEF)
 	- Canon Raw Version 2 (.CR2)
@@ -78,3 +78,6 @@ Requirements:
  - Make sure you (and this application) have at least Read permission to the folder you want to upload.
    - If you want to delete the files as well, make sure you have Delete permission.
    - Also, that the files are not in use anywhere else.
+
+## Special thanks
+ - [SixLabors ImageSharp](https://github.com/SixLabors/ImageSharp) library for reading EXIF data

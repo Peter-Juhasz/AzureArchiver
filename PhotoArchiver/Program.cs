@@ -48,8 +48,15 @@ namespace PhotoArchiver
             var result = await archiver.ArchiveAsync(options.Value.Path);
 
             // summarize results
-            foreach (var f in result.Results.Where(r => r.Result != UploadResult.Uploaded && r.Result != UploadResult.AlreadyExists))
+            var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
+            var failed = result.Results.Where(r => !r.Result.IsSuccessful());
+
+            Console.WriteLine($"{succeeded.Count()} succeeded, {failed.Count()} failed");
+
+            foreach (var f in failed)
+            {
                 Console.WriteLine(String.Join('\t', f.Result, f.File.Name));
+            }
         }
     }
 }
