@@ -60,12 +60,8 @@ namespace PhotoArchiver
             var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
             var failed = result.Results.Where(r => !r.Result.IsSuccessful());
 
-            Console.WriteLine($"{succeeded.Count()} succeeded, {failed.Count()} failed");
-
-            foreach (var f in failed)
-            {
-                Console.WriteLine(String.Join('\t', f.Result, f.File.Name));
-            }
+            logger.LogInformation($"{succeeded.Count()} succeeded, {failed.Count()} failed");
+            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName))));
         }
     }
 }

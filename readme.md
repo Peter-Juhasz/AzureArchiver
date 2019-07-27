@@ -34,6 +34,7 @@ So you can set the configuration in `appsettings.json`:
  - `Archive` (default `true`): archive files after upload
  - `Container` (default `"photos"`): the name of the container to upload files to
  - `Delete` (default `false`): delete files after successful upload
+ - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
 
 For example:
 ```json
