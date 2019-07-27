@@ -1,6 +1,6 @@
 # Archive photos to Azure Storage
 
-Archive your RAW photos and videos to [Azure Archive Storage](https://azure.microsoft.com/en-us/services/storage/archive/) with the lowest cost of €0.00084/GB/mo or €0.8/TB/mo. See detailed [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).
+Archive your photos and videos to [Azure Archive Storage](https://azure.microsoft.com/en-us/services/storage/archive/) with the lowest cost of €0.00084/GB/mo or €0.8/TB/mo. See detailed [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).
 
 This app uploads your files like `IMG_20190727_123456.jpg` to a container `photos` and groups them into directories like `2019`/`07`/`27`.
 
@@ -15,12 +15,12 @@ Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchive
 
 Run on Windows:
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
+.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
 ```
 
-Run on Linux:
+Run on Linux/Unix:
 ```sh
-dotnet PhotoArchiver.dll --Path "D:\OneDrive\Camera Roll" --ConnectionString "SECRET"
+dotnet PhotoArchiver.dll --Path="D:\OneDrive\Camera Roll" --Storage:ConnectionString="SECRET"
 ```
 
 You can also save your connection string to a configuration file. See below.
@@ -30,7 +30,7 @@ You can also save your connection string to a configuration file. See below.
 Configuration is based on the .NET Standard library and reads from JSON file and/or command-line arguments.
 
 So you can set the configuration in `appsettings.json`:
- - `ConnectionString`: the connection string for your Azure Storage
+ - `Storage:ConnectionString`: the connection string for your Azure Storage
  - `Archive` (default `true`): archive files after upload
  - `Container` (default `"photos"`): the name of the container to upload files to
  - `Delete` (default `false`): delete files after successful upload
@@ -38,7 +38,10 @@ So you can set the configuration in `appsettings.json`:
 For example:
 ```json
 {
-	"ConnectionString": "SECRET"
+	"Storage": {
+		"ConnectionString": "SECRET"
+	},
+	"Container": "photos"
 }
 ```
 
@@ -51,16 +54,24 @@ Or in CLI arguments:
 
 Supported file types:
  - Photos (with EXIF or date in file name)
+    - Any JPEG with EXIF
 	- Android
-	- Windows Phone
 	- Office Lens
+	- Windows Phone
  - Videos (with date in file name)
     - Android (.MP4)
     - Windows Phone (.MP4)
  - RAW (with matching JPEG or date in file name)
+	- Canon Raw Version 2 (.CR2)
 	- Digital Negative (.DNG), Windows Phone RAW
 	- Nikon Electric Format (.NEF)
-	- Canon Raw Version 2 (.CR2)
+
+Supported sources to upload from:
+ - Local File System
+ - Synced cloud storage
+   - OneDrive
+   - Google Drive
+ - USB, CD, DVD drives
 
 A single file is uploaded at a time.
 

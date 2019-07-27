@@ -34,9 +34,10 @@ namespace PhotoArchiver
                     .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information)
                     .AddConfiguration(configuration)
                 )
-                .AddSingleton(sp => CloudStorageAccount.Parse(sp.GetService<IOptions<Options>>().Value.ConnectionString))
+                .AddSingleton(sp => CloudStorageAccount.Parse(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
                 .AddSingleton(sp => sp.GetService<CloudStorageAccount>().CreateCloudBlobClient())
                 .Configure<Options>(configuration)
+                .Configure<StorageOptions>(configuration.GetSection("Storage"))
                 .AddSingleton<Archiver>()
                 .BuildServiceProvider();
 
