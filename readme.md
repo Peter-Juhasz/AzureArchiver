@@ -88,6 +88,10 @@ Supported sources to upload from:
 
 A single file is uploaded at a time.
 
+## Disclaimer
+
+Use at your own risk. The creator of this software takes no responsibility in moving, storing, deleting or processing your data in any form. It is your responsibility to keep your encryption keys safe. Also, cost estimations are only for information purposes, to get exact and detailed information view Azure Storage pricing page, or check your actual consumption in Azure Portal.
+
 ## Development
 
 Requirements:
