@@ -20,6 +20,7 @@ using MetadataExtractor;
 namespace PhotoArchiver
 {
     using KeyVault;
+    using Costs;
 
     public class Archiver
     {
@@ -29,6 +30,7 @@ namespace PhotoArchiver
             IOptions<KeyVaultOptions> keyVaultOptions,
             CloudBlobClient client,
             IKeyResolver keyResolver,
+            CostEstimator costEstimator,
             ILogger<Archiver> logger
         )
         {
@@ -37,6 +39,7 @@ namespace PhotoArchiver
             KeyVaultOptions = keyVaultOptions.Value;
             Client = client;
             KeyResolver = keyResolver;
+            CostEstimator = costEstimator;
             Logger = logger;
         }
 
@@ -45,6 +48,7 @@ namespace PhotoArchiver
         protected KeyVaultOptions KeyVaultOptions { get; }
         protected CloudBlobClient Client { get; }
         protected IKeyResolver KeyResolver { get; }
+        protected CostEstimator CostEstimator { get; }
         protected ILogger<Archiver> Logger { get; }
 
         private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -129,10 +133,12 @@ namespace PhotoArchiver
         {
             // check for exists
             Logger.LogTrace($"Checking for {file} exists...");
+            CostEstimator.AddRead();
             if (await blob.ExistsAsync())
             {
                 Logger.LogTrace($"Fetching attributes for {blob}...");
                 await blob.FetchAttributesAsync();
+                CostEstimator.AddRead();
 
                 // compare file size
                 if (blob.Properties.Length != file.Length)
@@ -157,6 +163,7 @@ namespace PhotoArchiver
                 {
                     Logger.LogTrace($"Archiving {blob}...");
                     await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
+                    CostEstimator.AddWrite();
                 }
 
                 if (Options.Delete)
@@ -173,7 +180,7 @@ namespace PhotoArchiver
 
             var requestOptions = new BlobRequestOptions
             {
-                StoreBlobContentMD5 = true
+                StoreBlobContentMD5 = true,
             };
             if (KeyVaultOptions.IsEnabled())
             {
@@ -181,12 +188,15 @@ namespace PhotoArchiver
             }
 
             await blob.UploadFromFileAsync(file.FullName, AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+            CostEstimator.AddWrite();
+            CostEstimator.AddBytes(file.Length);
 
             // archive
             if (StorageOptions.Archive)
             {
                 Logger.LogTrace($"Archiving {blob}...");
                 await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
+                CostEstimator.AddWrite();
             }
 
             // delete

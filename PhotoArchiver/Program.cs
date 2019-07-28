@@ -17,6 +17,7 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace PhotoArchiver
 {
+    using Costs;
     using KeyVault;
 
     class Program
@@ -52,6 +53,9 @@ namespace PhotoArchiver
                 .AddSingleton<IActiveDirectoryAccessTokenProvider, ActiveDirectoryAccessTokenProvider>()
                 .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
 
+                // costs
+                .AddScoped<CostEstimator>()
+
                 // app
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
@@ -66,12 +70,14 @@ namespace PhotoArchiver
             var options = provider.GetRequiredService<IOptions<UploadOptions>>();
             var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>();
             var client = provider.GetRequiredService<CloudBlobClient>();
+            var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
 
             logger.LogTrace("Ensure container exists...");
             if (await client.GetContainerReference(storageOptions.Value.Container).CreateIfNotExistsAsync())
             {
                 logger.LogInformation("Container created.");
+                costEstimator.AddListOrCreateContainer();
             }
 
             // start
@@ -83,6 +89,9 @@ namespace PhotoArchiver
 
             logger.LogInformation($"{succeeded.Count()} succeeded, {failed.Count()} failed");
             logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName, f.Error?.Message))));
+
+            logger.LogInformation($"Estimated costs:");
+            logger.LogInformation(String.Join(Environment.NewLine, costEstimator.Summarize().Select(t => String.Join('\t', t.Item1, t.Item2.ToString("€{0}")))));
         }
     }
 }
