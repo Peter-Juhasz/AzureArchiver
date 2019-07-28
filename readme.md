@@ -10,7 +10,7 @@ Requirements:
  - [Microsoft Azure subscription](https://azure.microsoft.com/)
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
    - (optional) [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) for encryption
-     - Key in Key Vault
+     - An RSA 2048/3072/4096-bit, Software/HSM Key in Key Vault
      - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
