@@ -21,6 +21,7 @@ namespace PhotoArchiver
 {
     using KeyVault;
     using Costs;
+    using System.Collections;
 
     public class Archiver
     {
@@ -85,7 +86,8 @@ namespace PhotoArchiver
             }
 
             // set up filter
-            var query = directory.EnumerateFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            var query = directory.EnumerateFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .OrderBy(f => f.FullName) as IEnumerable<FileInfo>;
 
             if (Options.Skip != 0)
             {
