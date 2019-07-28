@@ -53,5 +53,12 @@ namespace PhotoArchiver.Tests
             Assert.IsTrue(Archiver.TryParseDate("Office Lens_20140919_110252.jpg", out date));
             Assert.AreEqual(new DateTime(2014, 09, 19), date);
         }
+
+        [TestMethod]
+        public void ParseExifDate()
+        {
+            var result = Archiver.ParseExifDateTime("2016:01:12 11:37:49");
+            Assert.AreEqual(new DateTime(2016, 01, 12, 11, 37, 49), result);
+        }
     }
 }

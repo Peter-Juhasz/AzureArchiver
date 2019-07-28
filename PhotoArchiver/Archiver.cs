@@ -15,6 +15,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.MetaData.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using MetadataExtractor;
+using Microsoft.Extensions.FileProviders;
 
 namespace PhotoArchiver
 {
@@ -31,9 +32,9 @@ namespace PhotoArchiver
             Logger = logger;
         }
 
-        public Options Options { get; }
-        public CloudBlobClient Client { get; }
-        public ILogger<Archiver> Logger { get; }
+        protected Options Options { get; }
+        protected CloudBlobClient Client { get; }
+        protected ILogger<Archiver> Logger { get; }
 
         private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -178,14 +179,6 @@ namespace PhotoArchiver
                 case ".jpg":
                 case ".jpeg":
                     {
-                        using var image = Image.Load(file.FullName);
-                        if (TryGetDate(image, out var date))
-                            return date;
-                    }
-                    break;
-
-                case ".cr2":
-                    {
                         using var stream = file.OpenRead();
                         var metadata = ImageMetadataReader.ReadMetadata(stream);
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
@@ -196,19 +189,30 @@ namespace PhotoArchiver
                     }
                     break;
 
+                case ".cr2":
                 case ".nef":
                 case ".dng":
-                    var jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg"));
-                    if (jpeg.Exists)
-                        return await GetDateAsync(jpeg);
-
-                    if (file.Extension.Equals(".dng", StringComparison.OrdinalIgnoreCase))
                     {
-                        jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg").Replace("__highres", ""));
+                        using var stream = file.OpenRead();
+                        var metadata = ImageMetadataReader.ReadMetadata(stream);
+                        var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
+                        if (tag != null)
+                        {
+                            return ParseExifDateTime(tag.Description);
+                        }
+
+                        // fallback to JPEG
+                        var jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg"));
                         if (jpeg.Exists)
                             return await GetDateAsync(jpeg);
-                    }
 
+                        if (file.Extension.Equals(".dng", StringComparison.OrdinalIgnoreCase))
+                        {
+                            jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg").Replace("__highres", ""));
+                            if (jpeg.Exists)
+                                return await GetDateAsync(jpeg);
+                        }
+                    }
                     break;
 
                 case ".mp4":
@@ -242,19 +246,6 @@ namespace PhotoArchiver
                 return dt;
 
             return null;
-        }
-
-        private static bool TryGetDate(Image<Rgba32> image, out DateTime result)
-        {
-            ExifValue exifValue = image.MetaData.ExifProfile?.Values.FirstOrDefault(t => t.Tag == ExifTag.DateTimeOriginal);
-            if (TryParseDate(exifValue, out result))
-                return true;
-
-            ExifValue exifValue1 = image.MetaData.ExifProfile?.Values.FirstOrDefault(t => t.Tag == ExifTag.DateTime);
-            if (TryParseDate(exifValue1, out result))
-                return true;
-
-            return false;
         }
 
         internal static bool TryParseDate(string fileName, out DateTime result)
@@ -300,19 +291,7 @@ namespace PhotoArchiver
             return false;
         }
 
-        private static bool TryParseDate(ExifValue exifValue, out DateTime result)
-        {
-            if (exifValue == null)
-            {
-                result = default;
-                return false;
-            }
-
-            result = ParseExifDateTime(exifValue.ToString());
-            return true;
-        }
-
-        private static DateTime ParseExifDateTime(string exifValue) =>
+        internal static DateTime ParseExifDateTime(string exifValue) =>
             DateTime.Parse(
                 exifValue
                     .Remove(4, 1).Insert(4, ".")
