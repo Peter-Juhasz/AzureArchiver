@@ -21,7 +21,6 @@ namespace PhotoArchiver
 {
     using KeyVault;
     using Costs;
-    using System.Collections;
 
     public class Archiver
     {
@@ -58,6 +57,9 @@ namespace PhotoArchiver
             { ".mp4", "video/mp4" },
             { ".nef", "image/nef" },
             { ".dng", "image/dng" },
+            { ".mov", "video/quicktime" },
+            { ".avi", "video/x-msvideo" },
+            { ".mpg", "video/mpeg" },
         };
 
         private static readonly IReadOnlyDictionary<UploadResult, LogLevel> UploadResultLogLevelMap = new Dictionary<UploadResult, LogLevel>()
@@ -127,8 +129,10 @@ namespace PhotoArchiver
                     var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
                     // set metadata
-                    if (MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                    if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                    {
                         blob.Properties.ContentType = mimeType;
+                    }
 
                     // upload
                     var result = await UploadCoreAsync(blob, file);
