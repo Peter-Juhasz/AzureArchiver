@@ -155,12 +155,12 @@ namespace PhotoArchiver
         {
             // check for exists
             Logger.LogTrace($"Checking for {file} exists...");
-            CostEstimator.AddRead();
+            CostEstimator.AddOther();
             if (await blob.ExistsAsync())
             {
                 Logger.LogTrace($"Fetching attributes for {blob}...");
                 await blob.FetchAttributesAsync();
-                CostEstimator.AddRead();
+                CostEstimator.AddOther();
 
                 // compare file size
                 if (blob.Properties.Length != file.Length)

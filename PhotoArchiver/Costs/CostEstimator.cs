@@ -12,15 +12,17 @@ namespace PhotoArchiver.Costs
 
         protected IOptions<StorageOptions> StorageOptions { get; }
 
-        private const decimal ListOrCreateContainerPrice = 0.0422M / 10000;
-        private const decimal ReadPrice = 0.0422M / 10000;
-        private const decimal WritePrice = 0.0844M / 10000;
-        private const decimal OtherPrice = 0.0034M / 10000;
-        private const decimal CoolPricePerGB = 0.00844M;
-        private const decimal ArchivePricePerGB = 0.00084M;
-        private const decimal GRSDataTransferPricePerGB = 0.0169M;
+        // https://azure.microsoft.com/en-us/pricing/details/storage/blobs/
+        // based on West US 2
+        private const decimal ListOrCreateContainerPrice = 0.05M / 10000;
+        private const decimal CoolReadPrice = 0.01M / 10000;
+        private const decimal WritePrice = 0.10M / 10000;
+        private const decimal OtherPrice = 0.004M / 10000;
+        private const decimal LRSCoolPricePerGB = 0.01M;
+        private const decimal LRSArchivePricePerGB = 0.00099M;
+        private const decimal GRSDataTransferPricePerGB = 0.02M;
 
-        private const decimal KeyVaultOperationPrice = 0.026M / 10000;
+        private const decimal KeyVaultOperationPrice = 0.03M / 10000;
 
         private const long GB = 1024 * 1024 * 1024;
 
@@ -55,11 +57,44 @@ namespace PhotoArchiver.Costs
         public void AddKeyVaultOperation() => KeyVaultOperations++;
 
 
+        public IEnumerable<(string item, long amount)> SummarizeUsage()
+        {
+            if (Bytes > 0)
+            {
+                yield return ("Bytes transferred", Bytes);
+            }
+
+            if (ListOrCreateContainerPrice > 0)
+            {
+                yield return ("List or Create Container operations", ListOrCreateContainers);
+            }
+
+            if (KeyVaultOperations > 0)
+            {
+                yield return ("Key Vault transactions", KeyVaultOperations);
+            }
+
+            if (Reads > 0)
+            {
+                yield return ("Read operations", Reads);
+            }
+
+            if (Writes > 0)
+            {
+                yield return ("Write operations", Writes);
+            }
+
+            if (Others > 0)
+            {
+                yield return ("Other operations", Others);
+            }
+        }
+
         public IEnumerable<(string item, decimal cost)> Summarize()
         {
             if (Bytes > 0)
             {
-                yield return ("Data Storage (monthly)", (decimal)Bytes / GB * (StorageOptions.Value.Archive ? ArchivePricePerGB : CoolPricePerGB));
+                yield return ("Data Storage (monthly)", (decimal)Bytes / GB * (StorageOptions.Value.Archive ? LRSArchivePricePerGB : LRSCoolPricePerGB));
             }
 
             if (ListOrCreateContainerPrice > 0)
@@ -74,12 +109,12 @@ namespace PhotoArchiver.Costs
 
             if (Reads > 0)
             {
-                yield return ("Read operations (one time)", Reads * ReadPrice);
+                yield return ("Read operations (one time)", Reads * CoolReadPrice);
             }
 
             if (Writes > 0)
             {
-                yield return ("Writes operations (one time)", Writes * WritePrice);
+                yield return ("Write operations (one time)", Writes * WritePrice);
             }
 
             if (Others > 0)

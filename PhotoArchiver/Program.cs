@@ -87,11 +87,11 @@ namespace PhotoArchiver
             var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
             var failed = result.Results.Where(r => !r.Result.IsSuccessful());
 
-            logger.LogInformation($"{succeeded.Count()} succeeded, {failed.Count()} failed");
-            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName, f.Error?.Message))));
+            logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {failed.Count()} failed");
+            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
 
-            logger.LogInformation($"Estimated costs:");
-            logger.LogInformation(String.Join(Environment.NewLine, costEstimator.Summarize().Select(t => String.Join('\t', t.item, t.cost.ToString("€{0}")))));
+            logger.LogInformation($"Usage summary:");
+            logger.LogInformation(String.Join(Environment.NewLine, costEstimator.SummarizeUsage().Select(t => $"{t.item.PadRight(48, ' ')}\t{t.amount:N0}")));
         }
     }
 }
