@@ -11,11 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using MetadataExtractor.Formats.QuickTime;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.MetaData.Profiles.Exif;
-using SixLabors.ImageSharp.PixelFormats;
 using MetadataExtractor;
-using Microsoft.Extensions.FileProviders;
 
 namespace PhotoArchiver
 {

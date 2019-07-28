@@ -95,4 +95,3 @@ Requirements:
 
 ## Special thanks
  - [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) library for reading metadata from videos
- - [SixLabors ImageSharp](https://github.com/SixLabors/ImageSharp) library for reading EXIF data
