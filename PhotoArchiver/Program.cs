@@ -91,7 +91,7 @@ namespace PhotoArchiver
             logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result, f.File.FullName, f.Error?.Message))));
 
             logger.LogInformation($"Estimated costs:");
-            logger.LogInformation(String.Join(Environment.NewLine, costEstimator.Summarize().Select(t => String.Join('\t', t.Item1, t.Item2.ToString("€{0}")))));
+            logger.LogInformation(String.Join(Environment.NewLine, costEstimator.Summarize().Select(t => String.Join('\t', t.item, t.cost.ToString("€{0}")))));
         }
     }
 }

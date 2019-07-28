@@ -55,7 +55,7 @@ namespace PhotoArchiver.Costs
         public void AddKeyVaultOperation() => KeyVaultOperations++;
 
 
-        public IEnumerable<(string, decimal)> Summarize()
+        public IEnumerable<(string item, decimal cost)> Summarize()
         {
             if (Bytes > 0)
             {

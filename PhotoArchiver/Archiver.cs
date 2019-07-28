@@ -84,10 +84,26 @@ namespace PhotoArchiver
                 _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier.ToString(), cancellationToken);
             }
 
-            // enumerate files in directory
-            foreach (var file in directory.GetFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+            // set up filter
+            var query = directory.EnumerateFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+
+            if (Options.Skip != 0)
+            {
+                query = query.Skip(Options.Skip);
+            }
+
+            if (Options.Take != null)
+            {
+                query = query.Take(Options.Take.Value);
+            }
+
+            query = query
                 .Where(f => f.Name != "Thumbs.db")
-            )
+                .Where(f => f.Extension != ".thumb")
+            ;
+
+            // enumerate files in directory
+            foreach (var file in query)
             {
                 try
                 {

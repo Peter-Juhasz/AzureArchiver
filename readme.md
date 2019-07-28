@@ -40,6 +40,8 @@ So you can set the configuration in `appsettings.json`:
  - `Upload:IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
  - `Upload:SearchPattern` (default `"*"`): search pattern for files to upload
  - `Upload:Delete` (default `false`): delete files after successful upload
+ - `Upload:Skip` (default `0`): skip the first given number of files (by name ascending)
+ - `Upload:Take` (default `null`): upload only the first given number of files (by name ascending), can be combined with `Skip`
  - `KeyVault:KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
  - `KeyVault:ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
  - `KeyVault:ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
