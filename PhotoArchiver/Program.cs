@@ -3,17 +3,22 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+using Microsoft.Azure.KeyVault;
+using Microsoft.Azure.KeyVault.Core;
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
 namespace PhotoArchiver
 {
+    using KeyVault;
+
     class Program
     {
         static async Task Main(string[] args)
@@ -26,6 +31,7 @@ namespace PhotoArchiver
 
             // set up services
             using var serviceProvider = new ServiceCollection()
+                // logging
                 .AddLogging(builder => builder
                     .AddConsole(options =>
                     {
@@ -34,19 +40,33 @@ namespace PhotoArchiver
                     .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information)
                     .AddConfiguration(configuration)
                 )
+
+                // storage
+                .Configure<StorageOptions>(configuration.GetSection("Storage"))
                 .AddSingleton(sp => CloudStorageAccount.Parse(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
                 .AddSingleton(sp => sp.GetService<CloudStorageAccount>().CreateCloudBlobClient())
+
+                // key vault
+                .Configure<KeyVaultOptions>(configuration.GetSection("KeyVault"))
+                .AddSingleton<TokenCache>()
+                .AddSingleton<IActiveDirectoryAccessTokenProvider, ActiveDirectoryAccessTokenProvider>()
+                .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
+
+                // app
                 .Configure<Options>(configuration)
-                .Configure<StorageOptions>(configuration.GetSection("Storage"))
-                .AddSingleton<Archiver>()
+                .AddScoped<Archiver>()
+
                 .BuildServiceProvider();
 
             // initialize
-            var archiver = serviceProvider.GetRequiredService<Archiver>();
-            var options = serviceProvider.GetRequiredService<IOptions<Options>>();
-            var storageOptions = serviceProvider.GetRequiredService<IOptions<StorageOptions>>();
-            var client = serviceProvider.GetRequiredService<CloudBlobClient>();
-            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+            using var scope = serviceProvider.CreateScope();
+            var provider = scope.ServiceProvider;
+
+            var archiver = provider.GetRequiredService<Archiver>();
+            var options = provider.GetRequiredService<IOptions<Options>>();
+            var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>();
+            var client = provider.GetRequiredService<CloudBlobClient>();
+            var logger = provider.GetRequiredService<ILogger<Program>>();
 
             logger.LogTrace("Ensure container exists...");
             if (await client.GetContainerReference(storageOptions.Value.Container).CreateIfNotExistsAsync())
@@ -55,7 +75,7 @@ namespace PhotoArchiver
             }
 
             // start
-            var result = await archiver.ArchiveAsync(options.Value.Path);
+            var result = await archiver.ArchiveAsync(options.Value.Path, default);
 
             // summarize results
             var succeeded = result.Results.Where(r => r.Result.IsSuccessful());

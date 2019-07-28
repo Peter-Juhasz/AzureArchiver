@@ -4,35 +4,47 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Azure.KeyVault.Core;
+using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 using MetadataExtractor.Formats.QuickTime;
 using MetadataExtractor;
 
 namespace PhotoArchiver
 {
+    using KeyVault;
+
     public class Archiver
     {
         public Archiver(
             IOptions<Options> options,
             IOptions<StorageOptions> storageOptions,
+            IOptions<KeyVaultOptions> keyVaultOptions,
             CloudBlobClient client,
+            IKeyResolver keyResolver,
             ILogger<Archiver> logger
         )
         {
             Options = options.Value;
             StorageOptions = storageOptions.Value;
+            KeyVaultOptions = keyVaultOptions.Value;
             Client = client;
+            KeyResolver = keyResolver;
             Logger = logger;
         }
 
         protected Options Options { get; }
         protected StorageOptions StorageOptions { get; }
+        protected KeyVaultOptions KeyVaultOptions { get; }
         protected CloudBlobClient Client { get; }
+        protected IKeyResolver KeyResolver { get; }
         protected ILogger<Archiver> Logger { get; }
 
         private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -53,12 +65,20 @@ namespace PhotoArchiver
             { UploadResult.Uploaded, LogLevel.Information },
         };
 
-        public async Task<ArchiveResult> ArchiveAsync(string path)
+        private IKey? _key = null;
+
+        public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
         {
+            // initialize
             var directory = new DirectoryInfo(path);
             var container = Client.GetContainerReference(StorageOptions.Container);
 
             var results = new List<FileUploadResult>();
+
+            if (KeyVaultOptions.IsEnabled())
+            {
+                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier.ToString(), cancellationToken);
+            }
 
             // enumerate files in directory
             foreach (var file in directory.GetFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
@@ -150,7 +170,17 @@ namespace PhotoArchiver
 
             // upload
             Logger.LogTrace($"Uploading {file}...");
-            await blob.UploadFromFileAsync(file.FullName);
+
+            var requestOptions = new BlobRequestOptions
+            {
+                StoreBlobContentMD5 = true
+            };
+            if (KeyVaultOptions.IsEnabled())
+            {
+                requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
+            }
+
+            await blob.UploadFromFileAsync(file.FullName, AccessCondition.GenerateEmptyCondition(), requestOptions, null);
 
             // archive
             if (StorageOptions.Archive)
