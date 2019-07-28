@@ -54,6 +54,7 @@ namespace PhotoArchiver
                 .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
 
                 // costs
+                .Configure<CostOptions>(configuration.GetSection("Costs"))
                 .AddScoped<CostEstimator>()
 
                 // app
