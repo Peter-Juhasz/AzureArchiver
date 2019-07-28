@@ -35,6 +35,7 @@ So you can set the configuration in `appsettings.json`:
  - `Container` (default `"photos"`): the name of the container to upload files to
  - `Delete` (default `false`): delete files after successful upload
  - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
+ - `SearchPattern` (default `"*"`): search pattern for files to upload
 
 For example:
 ```json

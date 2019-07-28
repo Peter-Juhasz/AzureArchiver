@@ -12,5 +12,7 @@
         public bool Archive { get; set; } = true;
 
         public bool Delete { get; set; } = false;
+
+        public string SearchPattern { get; set; } = "*";
     }
 }

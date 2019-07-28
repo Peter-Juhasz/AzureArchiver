@@ -62,7 +62,7 @@ namespace PhotoArchiver
             var results = new List<FileUploadResult>();
 
             // enumerate files in directory
-            foreach (var file in directory.GetFiles("*", Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+            foreach (var file in directory.GetFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
                 .Where(f => f.Name != "Thumbs.db")
             )
             {
