@@ -53,7 +53,7 @@ namespace PhotoArchiver
                 .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
 
                 // app
-                .Configure<Options>(configuration)
+                .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
 
                 .BuildServiceProvider();
@@ -63,7 +63,7 @@ namespace PhotoArchiver
             var provider = scope.ServiceProvider;
 
             var archiver = provider.GetRequiredService<Archiver>();
-            var options = provider.GetRequiredService<IOptions<Options>>();
+            var options = provider.GetRequiredService<IOptions<UploadOptions>>();
             var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>();
             var client = provider.GetRequiredService<CloudBlobClient>();
             var logger = provider.GetRequiredService<ILogger<Program>>();

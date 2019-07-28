@@ -24,7 +24,7 @@ namespace PhotoArchiver
     public class Archiver
     {
         public Archiver(
-            IOptions<Options> options,
+            IOptions<UploadOptions> options,
             IOptions<StorageOptions> storageOptions,
             IOptions<KeyVaultOptions> keyVaultOptions,
             CloudBlobClient client,
@@ -40,7 +40,7 @@ namespace PhotoArchiver
             Logger = logger;
         }
 
-        protected Options Options { get; }
+        protected UploadOptions Options { get; }
         protected StorageOptions StorageOptions { get; }
         protected KeyVaultOptions KeyVaultOptions { get; }
         protected CloudBlobClient Client { get; }

@@ -1,6 +1,6 @@
 ﻿namespace PhotoArchiver
 {
-    public class Options
+    public class UploadOptions
     {
         public string Path { get; set; }
 

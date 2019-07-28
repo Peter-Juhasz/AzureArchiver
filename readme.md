@@ -2,7 +2,7 @@
 
 Archive your photos and videos to [Azure Archive Storage](https://azure.microsoft.com/en-us/services/storage/archive/) with the lowest cost of €0.00084/GB/mo or €0.8/TB/mo. See detailed [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).
 
-This app uploads and optionally encrypts your files like `IMG_20190727_123456.jpg` or `DSC_5438.NEF`, groups them by date into directories like `2019`/`07`/`27` and archives them to save cost.
+This app uploads and optionally encrypts your files like `IMG_20190727_123456.jpg` or `DSC_5438.NEF`, groups them by date into directories like `2019`/`07`/`27` and sets their tiers to Archive to save cost.
 
 ## Usage
 
@@ -11,19 +11,19 @@ Requirements:
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
    - (optional) [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) for encryption
      - Key in Key Vault
-     - Azure Active Directory App [Read docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+     - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
 
 Run on Windows:
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
+.\PhotoArchiver.exe --Upload:Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
 ```
 
 Run on Linux/Unix:
 ```sh
-dotnet PhotoArchiver.dll --Path="D:\OneDrive\Camera Roll" --Storage:ConnectionString="SECRET"
+dotnet PhotoArchiver.dll --Upload:Path="D:\OneDrive\Camera Roll" --Storage:ConnectionString="SECRET"
 ```
 
 You can also save your credentials to a configuration file. See below.
@@ -34,11 +34,12 @@ Configuration is based on the .NET Standard library and reads from JSON file and
 
 So you can set the configuration in `appsettings.json`:
  - `Storage:ConnectionString`: the connection string for your Azure Storage
- - `Storage:Archive` (default `true`): archive files after upload
  - `Storage:Container` (default `"photos"`): the name of the container to upload files to
- - `Delete` (default `false`): delete files after successful upload
- - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
- - `SearchPattern` (default `"*"`): search pattern for files to upload
+ - `Storage:Archive` (default `true`): archive files after upload
+ - `Upload:Path`: the directory to upload the files from
+ - `Upload:IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
+ - `Upload:SearchPattern` (default `"*"`): search pattern for files to upload
+ - `Upload:Delete` (default `false`): delete files after successful upload
  - `KeyVault:KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
  - `KeyVault:ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
  - `KeyVault:ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
@@ -50,13 +51,15 @@ For example:
 	"Storage": {
 		"ConnectionString": "SECRET"
 	},
-	"Delete": true
+	"Upload": {
+		"Delete": true
+	}
 }
 ```
 
 Or in CLI arguments:
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Storage:Archive false --Delete true
+.\PhotoArchiver.exe --Upload:Path "D:\OneDrive\Camera Roll" --Storage:Archive false --Upload:Delete true
 ```
 
 ## Information
