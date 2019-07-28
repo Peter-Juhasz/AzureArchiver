@@ -69,6 +69,7 @@ namespace PhotoArchiver
             var archiver = provider.GetRequiredService<Archiver>();
             var options = provider.GetRequiredService<IOptions<UploadOptions>>();
             var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>();
+            var costOptions = provider.GetRequiredService<IOptions<CostOptions>>();
             var client = provider.GetRequiredService<CloudBlobClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
@@ -84,6 +85,8 @@ namespace PhotoArchiver
             var result = await archiver.ArchiveAsync(options.Value.Path, default);
 
             // summarize results
+            logger.LogInformation("----------------------------------------------------------------");
+
             var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
             var failed = result.Results.Where(r => !r.Result.IsSuccessful());
 
@@ -92,6 +95,13 @@ namespace PhotoArchiver
 
             logger.LogInformation($"Usage summary:");
             logger.LogInformation(String.Join(Environment.NewLine, costEstimator.SummarizeUsage().Select(t => $"{t.item.PadRight(48, ' ')}\t{t.amount:N0}")));
+
+            var costsSummary = costEstimator.SummarizeCosts();
+            if (costsSummary.Any())
+            {
+                logger.LogInformation($"Estimated costs:");
+                logger.LogInformation(string.Join(Environment.NewLine, costsSummary.Select(t => $"{t.item.PadRight(48, ' ')}\t{costOptions.Value.Currency} {t.cost:N8}")));
+            }
         }
     }
 }

@@ -46,6 +46,15 @@ So you can set the configuration in `appsettings.json`:
  - `KeyVault:ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
  - `KeyVault:ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
  - `KeyVault:TenantId`: the Id of the Active Directory Tenant of the AD App
+ - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
+   - `Currency` (default `"$"`): currency to display costs
+   - `ListOrCreateContainerPricePer10000`
+   - `ReadPricePer10000`
+   - `WritePricePer10000`
+   - `OtherPricePer10000`
+   - `DataStoragePricePerGB`
+   - `GRSDataTransferPricePerGB`: leave it empty if your Storage Account is not geo-replicated
+   - `KeyVaultTransactionPrice`: leave it empty if you don't use Key Vault
 
 For example:
 ```json

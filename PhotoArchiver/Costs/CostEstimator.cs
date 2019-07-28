@@ -5,24 +5,14 @@ namespace PhotoArchiver.Costs
 {
     public class CostEstimator
     {
-        public CostEstimator(IOptions<StorageOptions> storageOptions)
+        public CostEstimator(IOptions<StorageOptions> storageOptions, IOptions<CostOptions> costOptions)
         {
             StorageOptions = storageOptions;
+            CostOptions = costOptions.Value;
         }
 
         protected IOptions<StorageOptions> StorageOptions { get; }
-
-        // https://azure.microsoft.com/en-us/pricing/details/storage/blobs/
-        // based on West US 2
-        private const decimal ListOrCreateContainerPrice = 0.05M / 10000;
-        private const decimal CoolReadPrice = 0.01M / 10000;
-        private const decimal WritePrice = 0.10M / 10000;
-        private const decimal OtherPrice = 0.004M / 10000;
-        private const decimal LRSCoolPricePerGB = 0.01M;
-        private const decimal LRSArchivePricePerGB = 0.00099M;
-        private const decimal GRSDataTransferPricePerGB = 0.02M;
-
-        private const decimal KeyVaultOperationPrice = 0.03M / 10000;
+        protected CostOptions CostOptions { get; }
 
         private const long GB = 1024 * 1024 * 1024;
 
@@ -64,7 +54,7 @@ namespace PhotoArchiver.Costs
                 yield return ("Bytes transferred", Bytes);
             }
 
-            if (ListOrCreateContainerPrice > 0)
+            if (ListOrCreateContainers > 0)
             {
                 yield return ("List or Create Container operations", ListOrCreateContainers);
             }
@@ -90,41 +80,41 @@ namespace PhotoArchiver.Costs
             }
         }
 
-        public IEnumerable<(string item, decimal cost)> Summarize()
+        public IEnumerable<(string item, decimal cost)> SummarizeCosts()
         {
-            if (Bytes > 0)
+            if (Bytes > 0 && CostOptions.DataStoragePricePerGB != null)
             {
-                yield return ("Data Storage (monthly)", (decimal)Bytes / GB * (StorageOptions.Value.Archive ? LRSArchivePricePerGB : LRSCoolPricePerGB));
+                yield return ("Data Storage (monthly)", (decimal)Bytes / GB * CostOptions.DataStoragePricePerGB.Value);
             }
 
-            if (ListOrCreateContainerPrice > 0)
+            if (ListOrCreateContainers > 0 && CostOptions.ListOrCreateContainerPricePer10000 != null)
             {
-                yield return ("List or Create Container operations (one time)", ListOrCreateContainers * ListOrCreateContainerPrice);
+                yield return ("List or Create Container operations (one time)", ListOrCreateContainers / 10000M * CostOptions.ListOrCreateContainerPricePer10000.Value);
             }
 
-            if (KeyVaultOperations > 0)
+            if (KeyVaultOperations > 0 && CostOptions.KeyVaultTransactionPrice != null)
             {
-                yield return ("Key Vault operations (one time)", KeyVaultOperations * KeyVaultOperationPrice);
+                yield return ("Key Vault operations (one time)", KeyVaultOperations / 10000M * CostOptions.KeyVaultTransactionPrice.Value);
             }
 
-            if (Reads > 0)
+            if (Reads > 0 && CostOptions.ReadPricePer10000 != null)
             {
-                yield return ("Read operations (one time)", Reads * CoolReadPrice);
+                yield return ("Read operations (one time)", Reads / 10000M * CostOptions.ReadPricePer10000.Value);
             }
 
-            if (Writes > 0)
+            if (Writes > 0 && CostOptions.WritePricePer10000 != null)
             {
-                yield return ("Write operations (one time)", Writes * WritePrice);
+                yield return ("Write operations (one time)", Writes / 10000M * CostOptions.WritePricePer10000.Value);
             }
 
-            if (Others > 0)
+            if (Others > 0 && CostOptions.OtherPricePer10000 != null)
             {
-                yield return ("Other operations (one time)", Others * OtherPrice);
+                yield return ("Other operations (one time)", Others / 10000M * CostOptions.OtherPricePer10000.Value);
             }
 
-            if (Bytes > 0)
+            if (Bytes > 0 && CostOptions.GRSDataTransferPricePerGB != null)
             {
-                yield return ("Geo-Redundancy Data Transfer (one time)", (decimal)Bytes / GB * GRSDataTransferPricePerGB);
+                yield return ("Geo-Redundancy Data Transfer (one time)", (decimal)Bytes / GB * CostOptions.GRSDataTransferPricePerGB.Value);
             }
         }
     }
