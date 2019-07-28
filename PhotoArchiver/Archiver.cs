@@ -23,16 +23,19 @@ namespace PhotoArchiver
     {
         public Archiver(
             IOptions<Options> options,
+            IOptions<StorageOptions> storageOptions,
             CloudBlobClient client,
             ILogger<Archiver> logger
         )
         {
             Options = options.Value;
+            StorageOptions = storageOptions.Value;
             Client = client;
             Logger = logger;
         }
 
         protected Options Options { get; }
+        protected StorageOptions StorageOptions { get; }
         protected CloudBlobClient Client { get; }
         protected ILogger<Archiver> Logger { get; }
 
@@ -57,7 +60,7 @@ namespace PhotoArchiver
         public async Task<ArchiveResult> ArchiveAsync(string path)
         {
             var directory = new DirectoryInfo(path);
-            var container = Client.GetContainerReference(Options.Container);
+            var container = Client.GetContainerReference(StorageOptions.Container);
 
             var results = new List<FileUploadResult>();
 
@@ -134,7 +137,7 @@ namespace PhotoArchiver
                 }
 
                 // archive, if not archived yet
-                if (Options.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
+                if (StorageOptions.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
                 {
                     Logger.LogTrace($"Archiving {blob}...");
                     await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
@@ -154,7 +157,7 @@ namespace PhotoArchiver
             await blob.UploadFromFileAsync(file.FullName);
 
             // archive
-            if (Options.Archive)
+            if (StorageOptions.Archive)
             {
                 Logger.LogTrace($"Archiving {blob}...");
                 await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);

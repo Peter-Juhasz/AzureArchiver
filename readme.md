@@ -31,8 +31,8 @@ Configuration is based on the .NET Standard library and reads from JSON file and
 
 So you can set the configuration in `appsettings.json`:
  - `Storage:ConnectionString`: the connection string for your Azure Storage
- - `Archive` (default `true`): archive files after upload
- - `Container` (default `"photos"`): the name of the container to upload files to
+ - `Storage:Archive` (default `true`): archive files after upload
+ - `Storage:Container` (default `"photos"`): the name of the container to upload files to
  - `Delete` (default `false`): delete files after successful upload
  - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
  - `SearchPattern` (default `"*"`): search pattern for files to upload
@@ -43,13 +43,13 @@ For example:
 	"Storage": {
 		"ConnectionString": "SECRET"
 	},
-	"Container": "photos"
+	"Delete": true
 }
 ```
 
 Or in CLI arguments:
 ```ps
-.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Archive false --Delete true
+.\PhotoArchiver.exe --Path "D:\OneDrive\Camera Roll" --Storage:Archive false --Delete true
 ```
 
 ## Information

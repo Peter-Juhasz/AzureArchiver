@@ -44,11 +44,12 @@ namespace PhotoArchiver
             // initialize
             var archiver = serviceProvider.GetRequiredService<Archiver>();
             var options = serviceProvider.GetRequiredService<IOptions<Options>>();
+            var storageOptions = serviceProvider.GetRequiredService<IOptions<StorageOptions>>();
             var client = serviceProvider.GetRequiredService<CloudBlobClient>();
             var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
             logger.LogTrace("Ensure container exists...");
-            if (await client.GetContainerReference(options.Value.Container).CreateIfNotExistsAsync())
+            if (await client.GetContainerReference(storageOptions.Value.Container).CreateIfNotExistsAsync())
             {
                 logger.LogInformation("Container created.");
             }
