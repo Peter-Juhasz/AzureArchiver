@@ -42,6 +42,11 @@ So you can set the configuration in `appsettings.json`:
  - `Upload:Delete` (default `false`): delete files after successful upload
  - `Upload:Skip` (default `0`): skip the first given number of files (by name ascending)
  - `Upload:Take` (default `null`): upload only the first given number of files (by name ascending), can be combined with `Skip`
+ - `Upload:ConflictResolution` (default `"Skip"`) possible values:
+   - `"Skip"`: whenever a conflict is found, log as warning and skip
+   - `"KeepBoth"`: the hash of the file to be uploaded is appended to its file name, right before its extension, and gets uploaded. The already existing blob is kept and not modified.
+   - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
+   - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
  - `KeyVault:KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
  - `KeyVault:ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
  - `KeyVault:ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
@@ -109,6 +114,8 @@ Requirements:
  - Visual Studio 2019 Preview
  - .NET Core SDK 2.2
 
+Place a file named `appsettings.json` into your project, at least as a placeholder.
+
 ## Troubleshooting
 
  - Make sure you have a valid key for your Storage Account. You can try it in another tool like Storage Explorer.
@@ -118,6 +125,10 @@ Requirements:
    - If you want to delete the files as well, make sure you have Delete permission.
    - Also, that the files are not in use anywhere else.
  - If you want to encrypt using Key Vault, make sure your AD App is defined in the Key Vault access policies.
+ 
+## Related resources
+ - [Manage blobs on Azure Portal](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-portal)
+ - [Manage blobs using Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
 
 ## Special thanks
  - [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) library for reading metadata from videos

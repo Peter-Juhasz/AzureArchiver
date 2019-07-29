@@ -2,10 +2,9 @@
 {
     public enum UploadResult
     {
-        FileSizeMismatch,
-        FileHashMismatch,
-        AlreadyExists,
         Uploaded,
+        AlreadyExists,
+        Conflict,
         DateMissing,
         Error,
     }

@@ -26,6 +26,12 @@ namespace PhotoArchiver.Costs
 
         public void AddWrite() => Writes++;
 
+        public void AddWrite(long bytes)
+        {
+            AddWrite();
+            AddBytes(bytes);
+        }
+
 
         public int Others { get; private set; } = 0;
 
