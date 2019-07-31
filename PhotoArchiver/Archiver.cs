@@ -21,6 +21,7 @@ namespace PhotoArchiver
 {
     using KeyVault;
     using Costs;
+    using System.Collections;
 
     public class Archiver
     {
@@ -71,6 +72,17 @@ namespace PhotoArchiver
             { UploadResult.Error, LogLevel.Error },
         };
 
+        private static readonly IReadOnlyCollection<string> IgnoredFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Thumb.db", // Windows Explorer
+            "ZbThumbnail.info", // Canon PowerShot
+        };
+
+        private static readonly IReadOnlyCollection<string> IgnoredExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".thumb",
+        };
+
         private IKey? _key = null;
 
         public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
@@ -101,8 +113,8 @@ namespace PhotoArchiver
             }
 
             query = query
-                .Where(f => f.Name != "Thumbs.db")
-                .Where(f => f.Extension != ".thumb")
+                .Where(f => !IgnoredFileNames.Contains(f.Name))
+                .Where(f => !IgnoredExtensions.Contains(f.Extension))
             ;
 
             // enumerate files in directory
