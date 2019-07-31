@@ -21,7 +21,6 @@ namespace PhotoArchiver
 {
     using KeyVault;
     using Costs;
-    using System.Collections;
 
     public class Archiver
     {
@@ -144,6 +143,9 @@ namespace PhotoArchiver
                         .GetDirectoryReference(date.Value.Day.ToString().PadLeft(2, '0'));
                     var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
+                    // add metadata
+                    AddMetadata(blob, file, date.Value);
+
                     // set metadata
                     if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
                     {
@@ -176,6 +178,7 @@ namespace PhotoArchiver
                                         var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
 
                                         blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
+                                        AddMetadata(blob, file, date.Value);
 
                                         // upload with new name
                                         switch (await ExistsAndCompareAsync(blob, file))
@@ -254,6 +257,12 @@ namespace PhotoArchiver
             }
 
             return new ArchiveResult(results);
+        }
+
+        private static void AddMetadata(CloudBlockBlob blob, FileInfo file, DateTime date)
+        {
+            blob.Metadata.Add("OriginalFileName", file.FullName);
+            blob.Metadata.Add("CreatedAt", date.ToString("o"));
         }
 
         private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileInfo file)
