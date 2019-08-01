@@ -33,24 +33,27 @@ You can also save your credentials to a configuration file. See below.
 Configuration is based on the .NET Standard library and reads from JSON file and/or command-line arguments.
 
 So you can set the configuration in `appsettings.json`:
- - `Storage:ConnectionString`: the connection string for your Azure Storage
- - `Storage:Container` (default `"photos"`): the name of the container to upload files to
- - `Storage:Archive` (default `true`): archive files after upload
- - `Upload:Path`: the directory to upload the files from
- - `Upload:IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
- - `Upload:SearchPattern` (default `"*"`): search pattern for files to upload
- - `Upload:Delete` (default `false`): delete files after successful upload
- - `Upload:Skip` (default `0`): skip the first given number of files (by name ascending)
- - `Upload:Take` (default `null`): upload only the first given number of files (by name ascending), can be combined with `Skip`
- - `Upload:ConflictResolution` (default `"Skip"`) possible values:
-   - `"Skip"`: whenever a conflict is found, log as warning and skip
-   - `"KeepBoth"`: the hash of the file to be uploaded is appended to its file name, right before its extension, and gets uploaded. The already existing blob is kept and not modified.
-   - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
-   - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
- - `KeyVault:KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
- - `KeyVault:ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
- - `KeyVault:ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
- - `KeyVault:TenantId`: the Id of the Active Directory Tenant of the AD App
+ - `Storage` properties of Storage Account
+   - **`ConnectionString`**: the connection string for your Azure Storage
+   - `Container` (default `"photos"`): the name of the container to upload files to
+   - `Archive` (default `true`): archive files after upload
+ - `Upload` upload settings
+   - **`Path`**: the directory to upload the files from
+   - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
+   - `SearchPattern` (default `"*"`): search pattern for files to upload
+   - `Delete` (default `false`): delete files after successful upload
+   - `Skip` (default `0`): skip the first given number of files (by name ascending)
+   - `Take` (default `null`): upload only the first given number of files (by name ascending), can be combined with `Skip`
+   - `ConflictResolution` (default `"Skip"`) possible values:
+     - `"Skip"`: whenever a conflict is found, log as warning and skip
+     - `"KeepBoth"`: the hash of the file to be uploaded is appended to its file name, right before its extension, and gets uploaded. The already existing blob is kept and not modified.
+     - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
+     - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
+ - `KeyVault` Azure Key Vault for encryption/decryption
+   - `KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
+   - `ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
+   - `ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
+   - `TenantId`: the Id of the Active Directory Tenant of the AD App
  - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
    - `Currency` (default `"$"`): currency to display costs
    - `ListOrCreateContainerPricePer10000`
