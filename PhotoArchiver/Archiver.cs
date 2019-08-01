@@ -19,8 +19,9 @@ using MetadataExtractor;
 
 namespace PhotoArchiver
 {
-    using KeyVault;
     using Costs;
+    using Formats;
+    using KeyVault;
 
     public class Archiver
     {
@@ -378,6 +379,17 @@ namespace PhotoArchiver
                         if (tag != null)
                         {
                             return DateTime.ParseExact(tag.Description, "ddd MMM dd HH:mm:ss yyyy", new CultureInfo("en-us"));
+                        }
+                    }
+                    break;
+
+                case ".avi":
+                    {
+                        using var stream = file.OpenRead();
+                        var date = await AviDateReader.ReadAsync(stream);
+                        if (date != null)
+                        {
+                            return date;
                         }
                     }
                     break;
