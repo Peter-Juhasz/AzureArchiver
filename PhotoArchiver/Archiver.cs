@@ -91,6 +91,7 @@ namespace PhotoArchiver
             // initialize
             var directory = new DirectoryInfo(path);
             var container = Client.GetContainerReference(StorageOptions.Container);
+            var lastDirectoryName = null as string;
 
             var results = new List<FileUploadResult>();
 
@@ -121,6 +122,14 @@ namespace PhotoArchiver
             // enumerate files in directory
             foreach (var file in query)
             {
+                // display directory
+                var currentDirectoryName = file.Directory.FullName;
+                if (lastDirectoryName != currentDirectoryName)
+                {
+                    Logger.LogInformation($"Processing directory '{currentDirectoryName}'");
+                    lastDirectoryName = currentDirectoryName;
+                }
+
                 UploadResult result = default;
 
                 try
