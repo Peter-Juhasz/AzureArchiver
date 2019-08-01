@@ -84,15 +84,17 @@ Supported file types:
  - Photos
     - Any JPEG with EXIF
 	- Android
+    - iOS (.JPG, .HEIF, .HEIC)
 	- Office Lens
 	- Windows Phone
  - Videos
 	- Any video with Quick Time metadata (.MOV, .MP4)
     - Android (.MP4)
+    - iOS (.MOV)
     - Windows Phone (.MP4)
  - RAW (with EXIF, matching JPEG or date in file name)
 	- Canon Raw Version 2 (.CR2)
-	- Digital Negative (.DNG), Windows Phone RAW
+	- Digital Negative (.DNG), iOS/Windows Phone RAW
 	- Nikon Electric Format (.NEF)
 
 Supported sources to upload from:
