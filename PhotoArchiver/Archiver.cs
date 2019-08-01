@@ -328,6 +328,8 @@ namespace PhotoArchiver
             {
                 case ".jpg":
                 case ".jpeg":
+                case ".heif":
+                case ".heic":
                     {
                         using var stream = file.OpenRead();
                         var metadata = ImageMetadataReader.ReadMetadata(stream);
