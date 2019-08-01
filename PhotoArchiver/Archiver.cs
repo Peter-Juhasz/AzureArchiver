@@ -80,6 +80,7 @@ namespace PhotoArchiver
         private static readonly IReadOnlyCollection<string> IgnoredExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ".thumb",
+            ".thm", // Camera thumbnail
         };
 
         private IKey? _key = null;
@@ -263,6 +264,7 @@ namespace PhotoArchiver
         {
             blob.Metadata.Add("OriginalFileName", file.FullName);
             blob.Metadata.Add("CreatedAt", date.ToString("o"));
+            blob.Metadata.Add("OriginalFileSize", file.Length.ToString()); // for encryption
         }
 
         private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileInfo file)
@@ -385,12 +387,6 @@ namespace PhotoArchiver
                         if (TryParseDate(file.Name, out var date))
                             return date;
                     }
-                    break;
-
-                case ".thm":
-                    var mpg = new FileInfo(Path.ChangeExtension(file.FullName, ".mpg"));
-                    if (mpg.Exists)
-                        return await GetDateAsync(mpg);
                     break;
             }
 
