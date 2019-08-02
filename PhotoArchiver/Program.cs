@@ -20,6 +20,7 @@ namespace PhotoArchiver
 {
     using Costs;
     using KeyVault;
+    using Logging;
 
     class Program
     {
@@ -39,6 +40,7 @@ namespace PhotoArchiver
                     {
                         options.IncludeScopes = false;
                     })
+                    .AddProvider(new FileLoggerProvider())
                     .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information)
                     .AddConfiguration(configuration)
                 )
