@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -83,7 +84,9 @@ namespace PhotoArchiver
             }
 
             // start
+            var watch = Stopwatch.StartNew();
             var result = await archiver.ArchiveAsync(options.Value.Path, default);
+            watch.Stop();
 
             // summarize results
             logger.LogInformation("----------------------------------------------------------------");
@@ -92,7 +95,11 @@ namespace PhotoArchiver
             var failed = result.Results.Where(r => !r.Result.IsSuccessful());
 
             logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {failed.Count()} failed");
-            logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
+            logger.LogInformation($"Time elapsed: {watch.Elapsed}");
+            if (failed.Any())
+            {
+                logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
+            }
 
             logger.LogInformation($"Usage summary:");
             logger.LogInformation(String.Join(Environment.NewLine, costEstimator.SummarizeUsage().Select(t => $"{t.item.PadRight(48, ' ')}\t{t.amount:N0}")));
