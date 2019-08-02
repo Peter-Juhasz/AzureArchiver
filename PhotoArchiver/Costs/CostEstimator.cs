@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 namespace PhotoArchiver.Costs
 {
+    using Storage;
+
     public class CostEstimator
     {
         public CostEstimator(IOptions<StorageOptions> storageOptions, IOptions<CostOptions> costOptions)

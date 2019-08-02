@@ -24,6 +24,7 @@ namespace PhotoArchiver
     using Extensions;
     using Formats;
     using KeyVault;
+    using Storage;
 
     public class Archiver
     {
@@ -157,10 +158,8 @@ namespace PhotoArchiver
                         continue;
                     }
 
-                    var blobDirectory = container
-                        .GetDirectoryReference(date.Value.Year.ToString())
-                        .GetDirectoryReference(date.Value.Month.ToString().PadLeft(2, '0'))
-                        .GetDirectoryReference(date.Value.Day.ToString().PadLeft(2, '0'));
+                    // blob
+                    var blobDirectory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
                     var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
                     // add metadata

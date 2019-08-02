@@ -21,6 +21,7 @@ namespace PhotoArchiver
     using Costs;
     using KeyVault;
     using Logging;
+    using Storage;
 
     class Program
     {

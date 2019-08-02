@@ -37,6 +37,7 @@ So you can set the configuration in `appsettings.json`:
    - **`ConnectionString`**: the connection string for your Azure Storage
    - `Container` (default `"photos"`): the name of the container to upload files to
    - `Archive` (default `true`): archive files after upload
+   - `DirectoryFormat` (default `"{0:yyyy}/{0:MM}/{0:dd}"`): format string for blob directories that blob are organized into ([see docs](https://docs.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings))
  - `Upload` upload settings
    - **`Path`**: the directory to upload the files from
    - `SearchPattern` (default `"**/*"`): glob search pattern for files to upload ([see docs](https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.filesystemglobbing.matcher#remarks))
@@ -91,6 +92,7 @@ Supported file types:
 	- Windows Phone
  - Videos
 	- Any video with Quick Time metadata (.MOV, .MP4)
+    - Any video with RIFF IDIT metadat (.AVI)
     - Android (.MP4)
     - iOS (.MOV)
     - Windows Phone (.MP4)
