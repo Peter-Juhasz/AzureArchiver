@@ -39,8 +39,7 @@ So you can set the configuration in `appsettings.json`:
    - `Archive` (default `true`): archive files after upload
  - `Upload` upload settings
    - **`Path`**: the directory to upload the files from
-   - `IncludeSubdirectories` (default `true`): include all subdirectories of `Path` to upload
-   - `SearchPattern` (default `"*"`): search pattern for files to upload
+   - `SearchPattern` (default `"**/*"`): glob search pattern for files to upload ([see docs](https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.filesystemglobbing.matcher#remarks))
    - `Delete` (default `false`): delete files after successful upload
    - `Skip` (default `0`): skip the first given number of files (by name ascending)
    - `Take` (default `null`): upload only the first given number of files (by name ascending), can be combined with `Skip`

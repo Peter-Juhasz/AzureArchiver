@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.KeyVault.Core;
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
+using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -104,8 +105,13 @@ namespace PhotoArchiver
             }
 
             // set up filter
-            var query = directory.EnumerateFiles(Options.SearchPattern, Options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                .OrderBy(f => f.FullName) as IEnumerable<FileInfo>;
+            var matcher = new Matcher().AddInclude(Options.SearchPattern);
+
+            var query = matcher.GetResultsInFullPath(directory.FullName)
+                .OrderBy(f => f)
+                .Select(f => new FileInfo(f))
+                .Where(f => !IgnoredFileNames.Contains(f.Name))
+                .Where(f => !IgnoredExtensions.Contains(f.Extension));
 
             if (Options.Skip != 0)
             {
@@ -116,11 +122,6 @@ namespace PhotoArchiver
             {
                 query = query.Take(Options.Take.Value);
             }
-
-            query = query
-                .Where(f => !IgnoredFileNames.Contains(f.Name))
-                .Where(f => !IgnoredExtensions.Contains(f.Extension))
-            ;
 
             // estimate count
             var processedCount = 0;
@@ -399,7 +400,7 @@ namespace PhotoArchiver
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
                         if (tag != null)
                         {
-                            return DateTime.ParseExact(tag.Description, "ddd MMM dd HH:mm:ss yyyy", new CultureInfo("en-us"));
+                            return DateTime.ParseExact(tag.Description, "ddd MMM dd HH:mm:ss yyyy", CultureInfo.CurrentCulture);
                         }
                     }
                     break;
