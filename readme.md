@@ -133,6 +133,7 @@ Place a file named `appsettings.json` into your project, at least as a placehold
  - If you want to encrypt using Key Vault, make sure your AD App is defined in the Key Vault access policies.
  
 ## Related resources
+ - [Create a Storage Account](https://docs.microsoft.com/en-us/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal)
  - [Manage blobs on Azure Portal](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-portal)
  - [Manage blobs using Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
 
