@@ -400,7 +400,10 @@ namespace PhotoArchiver
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
                         if (tag != null)
                         {
-                            return DateTime.ParseExact(tag.Description, "ddd MMM dd HH:mm:ss yyyy", CultureInfo.CurrentCulture);
+                            if (DateTime.TryParseExact(tag.Description, WellKnownDateTimeFormats.QuickTime, CultureInfo.CurrentCulture, default, out var result))
+                                return result;
+
+                            return DateTime.ParseExact(tag.Description, WellKnownDateTimeFormats.QuickTime, WellKnownCultures.EnglishUnitedStates);
                         }
                     }
                     break;
