@@ -20,6 +20,7 @@ using MetadataExtractor;
 namespace PhotoArchiver
 {
     using Costs;
+    using Extensions;
     using Formats;
     using KeyVault;
 
@@ -74,7 +75,8 @@ namespace PhotoArchiver
 
         private static readonly IReadOnlyCollection<string> IgnoredFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Thumb.db", // Windows Explorer
+            "Thumbs.db", // Windows Explorer
+            "desktop.ini", // Windows Explorer
             "ZbThumbnail.info", // Canon PowerShot
         };
 
@@ -82,6 +84,7 @@ namespace PhotoArchiver
         {
             ".thumb",
             ".thm", // Camera thumbnail
+            ".tmp",
         };
 
         private IKey? _key = null;
@@ -119,6 +122,10 @@ namespace PhotoArchiver
                 .Where(f => !IgnoredExtensions.Contains(f.Extension))
             ;
 
+            // estimate count
+            var processedCount = 0;
+            var count = query.Count();
+
             // enumerate files in directory
             foreach (var file in query)
             {
@@ -145,6 +152,7 @@ namespace PhotoArchiver
                         result = UploadResult.DateMissing;
                         results.Add(new FileUploadResult(file, result));
                         Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
+                        processedCount++;
                         continue;
                     }
 
@@ -257,13 +265,17 @@ namespace PhotoArchiver
 
                     // log
                     results.Add(new FileUploadResult(file, result));
-                    Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
+                    Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}\t({processedCount + 1} of {count})");
                 }
                 catch (Exception ex)
                 {
                     result = UploadResult.Error;
                     Logger.LogError(ex, $"Failed to process {file}");
                     results.Add(new FileUploadResult(file, result, ex));
+                }
+                finally
+                {
+                    processedCount++;
                 }
             }
 
@@ -272,7 +284,7 @@ namespace PhotoArchiver
 
         private static void AddMetadata(CloudBlockBlob blob, FileInfo file, DateTime date)
         {
-            blob.Metadata.Add("OriginalFileName", file.FullName);
+            blob.Metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
             blob.Metadata.Add("CreatedAt", date.ToString("o"));
             blob.Metadata.Add("OriginalFileSize", file.Length.ToString()); // for encryption
         }
