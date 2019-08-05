@@ -21,6 +21,7 @@ namespace PhotoArchiver
     using Costs;
     using KeyVault;
     using Logging;
+    using Update;
     using Storage;
 
     class Program
@@ -43,7 +44,7 @@ namespace PhotoArchiver
                     })
                     .AddProvider(new FileLoggerProvider())
                     .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information)
-                    .AddConfiguration(configuration)
+                    .AddConfiguration(configuration.GetSection("Logging"))
                 )
 
                 // storage
@@ -61,9 +62,17 @@ namespace PhotoArchiver
                 .Configure<CostOptions>(configuration.GetSection("Costs"))
                 .AddScoped<CostEstimator>()
 
-                // app
+                // upload
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
+
+                // update
+                .Configure<UpdateOptions>(configuration.GetSection("Update"))
+                .AddSingleton<IUpdateService, UpdateService>()
+                    .AddHttpClient<IUpdateService, UpdateService>(client =>
+                    {
+                        client.DefaultRequestHeaders.Add("User-Agent", "AzureArchiver");
+                    }).Services
 
                 .BuildServiceProvider();
 
@@ -78,7 +87,15 @@ namespace PhotoArchiver
             var client = provider.GetRequiredService<CloudBlobClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
+            var updateService = provider.GetRequiredService<IUpdateService>();
 
+            // check for updates
+            if (await updateService.CheckForUpdatesAsync())
+            {
+                logger.LogWarning("A new version is available.");
+            }
+
+            // create container if not exists
             logger.LogTrace("Ensure container exists...");
             if (await client.GetContainerReference(storageOptions.Value.Container).CreateIfNotExistsAsync())
             {
