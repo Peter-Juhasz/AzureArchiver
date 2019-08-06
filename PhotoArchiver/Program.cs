@@ -68,8 +68,8 @@ namespace PhotoArchiver
 
                 // update
                 .Configure<UpdateOptions>(configuration.GetSection("Update"))
-                .AddSingleton<IUpdateService, UpdateService>()
-                    .AddHttpClient<IUpdateService, UpdateService>(client =>
+                .AddSingleton<IUpdateService, GitHubUpdateService>()
+                    .AddHttpClient<IUpdateService, GitHubUpdateService>(client =>
                     {
                         client.DefaultRequestHeaders.Add("User-Agent", "AzureArchiver");
                     }).Services
@@ -87,12 +87,14 @@ namespace PhotoArchiver
             var client = provider.GetRequiredService<CloudBlobClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
-            var updateService = provider.GetRequiredService<IUpdateService>();
 
             // check for updates
-            if (await updateService.CheckForUpdatesAsync())
+            var updateService = provider.GetRequiredService<IUpdateService>();
+            var updateOptions = provider.GetRequiredService<IOptions<UpdateOptions>>();
+
+            if (updateOptions.Value.Enabled && await updateService.CheckForUpdatesAsync())
             {
-                logger.LogWarning("A new version is available.");
+                logger.LogWarning($"A new version is available. You can download it from {updateOptions.Value.Home}");
             }
 
             // create container if not exists

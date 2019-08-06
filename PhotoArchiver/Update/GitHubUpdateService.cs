@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace PhotoArchiver.Update
 {
-    public class UpdateService : IUpdateService
+    public class GitHubUpdateService : IUpdateService
     {
-        public UpdateService(HttpClient http, IOptions<UpdateOptions> options, ILogger<UpdateService> logger)
+        public GitHubUpdateService(HttpClient http, IOptions<UpdateOptions> options, ILogger<GitHubUpdateService> logger)
         {
             Http = http;
             Options = options;
@@ -21,7 +21,7 @@ namespace PhotoArchiver.Update
 
         protected HttpClient Http { get; }
         protected IOptions<UpdateOptions> Options { get; }
-        protected ILogger<UpdateService> Logger { get; }
+        protected ILogger<GitHubUpdateService> Logger { get; }
 
         private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
