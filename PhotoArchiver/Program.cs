@@ -19,6 +19,7 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 namespace PhotoArchiver
 {
     using Costs;
+    using Deduplication;
     using KeyVault;
     using Logging;
     using Update;
@@ -65,6 +66,7 @@ namespace PhotoArchiver
                 // upload
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
+                .AddScoped<IDeduplicationService, DeduplicationService>()
 
                 // update
                 .Configure<UpdateOptions>(configuration.GetSection("Update"))

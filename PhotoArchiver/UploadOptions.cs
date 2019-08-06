@@ -13,5 +13,7 @@
         public int? Take { get; set; } = null;
 
         public ConflictResolution ConflictResolution { get; set; } = ConflictResolution.Skip;
+
+        public bool Deduplicate { get; set; } = false;
     }
 }

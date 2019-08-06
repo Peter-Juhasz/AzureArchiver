@@ -21,6 +21,7 @@ using MetadataExtractor;
 namespace PhotoArchiver
 {
     using Costs;
+    using Deduplication;
     using Extensions;
     using Formats;
     using KeyVault;
@@ -34,6 +35,7 @@ namespace PhotoArchiver
             IOptions<KeyVaultOptions> keyVaultOptions,
             CloudBlobClient client,
             IKeyResolver keyResolver,
+            IDeduplicationService deduplicationService,
             CostEstimator costEstimator,
             ILogger<Archiver> logger
         )
@@ -43,6 +45,7 @@ namespace PhotoArchiver
             KeyVaultOptions = keyVaultOptions.Value;
             Client = client;
             KeyResolver = keyResolver;
+            DeduplicationService = deduplicationService;
             CostEstimator = costEstimator;
             Logger = logger;
         }
@@ -52,6 +55,7 @@ namespace PhotoArchiver
         protected KeyVaultOptions KeyVaultOptions { get; }
         protected CloudBlobClient Client { get; }
         protected IKeyResolver KeyResolver { get; }
+        protected IDeduplicationService DeduplicationService { get; }
         protected CostEstimator CostEstimator { get; }
         protected ILogger<Archiver> Logger { get; }
 
@@ -140,6 +144,7 @@ namespace PhotoArchiver
                 }
 
                 UploadResult result = default;
+                byte[]? hash = null;
 
                 try
                 {
@@ -160,102 +165,131 @@ namespace PhotoArchiver
 
                     // blob
                     var blobDirectory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
-                    var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
-                    // add metadata
-                    AddMetadata(blob, file, date.Value);
-
-                    // set metadata
-                    if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                    // deduplicate
+                    if (Options.Deduplicate)
                     {
-                        blob.Properties.ContentType = mimeType;
-                    }
+                        using var hashAlgorithm = MD5.Create();
+                        using var stream = file.OpenRead();
+                        hash = hashAlgorithm.ComputeHash(stream);
 
-                    // check for extistance
-                    switch (await ExistsAndCompareAsync(blob, file))
-                    {
-                        // upload, if not exists
-                        case null:
-                            result = await UploadCoreAsync(blob, file);
-                            break;
-
-                        // already exists, if matches
-                        case true:
-                            result = UploadResult.AlreadyExists;
-                            break;
-
-                        // exists, but does not match
-                        case false:
-                            switch (Options.ConflictResolution)
-                            {
-                                case ConflictResolution.KeepBoth:
-                                    {
-                                        // compute hash for new file name
-                                        using var hashAlgorithm = MD5.Create();
-                                        using var stream = file.OpenRead();
-                                        var hash = hashAlgorithm.ComputeHash(stream);
-                                        var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
-
-                                        blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
-                                        AddMetadata(blob, file, date.Value);
-
-                                        // upload with new name
-                                        switch (await ExistsAndCompareAsync(blob, file))
-                                        {
-                                            case null:
-                                                result = await UploadCoreAsync(blob, file);
-                                                break;
-
-                                            case false:
-                                                result = UploadResult.Error;
-                                                break;
-
-                                            case true:
-                                                result = UploadResult.AlreadyExists;
-                                                break;
-                                        }
-                                    }
-                                    break;
-
-                                case ConflictResolution.SnapshotAndOverwrite:
-                                    if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
-                                    {
-                                        result = UploadResult.Error;
-                                        break;
-                                    }
-
-                                    await blob.CreateSnapshotAsync(cancellationToken);
-                                    result = await UploadCoreAsync(blob, file);
-                                    break;
-
-                                case ConflictResolution.Overwrite:
-                                    if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
-                                    {
-                                        await blob.DeleteAsync(cancellationToken);
-                                    }
-
-                                    result = await UploadCoreAsync(blob, file);
-                                    break;
-
-                                default:
-                                case ConflictResolution.Skip:
-                                    result = UploadResult.Conflict;
-                                    break;
-                            }
-                            break;
-                    }
-
-                    if (result.IsSuccessful())
-                    {
-                        // archive
-                        if (StorageOptions.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
+                        if (await DeduplicationService.ContainsAsync(blobDirectory, hash))
                         {
-                            Logger.LogTrace($"Archiving {blob}...");
-                            await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
-                            CostEstimator.AddWrite();
+                            result = UploadResult.AlreadyExists;
+                        }
+                    }
+
+                    if (result != UploadResult.AlreadyExists)
+                    {
+                        var blob = blobDirectory.GetBlockBlobReference(file.Name);
+
+                        // add metadata
+                        AddMetadata(blob, file, date.Value);
+
+                        // set metadata
+                        if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                        {
+                            blob.Properties.ContentType = mimeType;
                         }
 
-                        // delete
+                        // check for extistance
+                        switch (await ExistsAndCompareAsync(blob, file))
+                        {
+                            // upload, if not exists
+                            case null:
+                                result = await UploadCoreAsync(blob, file);
+                                break;
+
+                            // already exists, if matches
+                            case true:
+                                result = UploadResult.AlreadyExists;
+                                break;
+
+                            // exists, but does not match
+                            case false:
+                                switch (Options.ConflictResolution)
+                                {
+                                    case ConflictResolution.KeepBoth:
+                                        {
+                                            // compute hash for new file name
+                                            if (hash == null)
+                                            {
+                                                using var hashAlgorithm = MD5.Create();
+                                                using var stream = file.OpenRead();
+                                                hash = hashAlgorithm.ComputeHash(stream);
+                                            }
+                                            var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
+
+                                            blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
+                                            AddMetadata(blob, file, date.Value);
+
+                                            // upload with new name
+                                            switch (await ExistsAndCompareAsync(blob, file))
+                                            {
+                                                case null:
+                                                    result = await UploadCoreAsync(blob, file);
+                                                    break;
+
+                                                case false:
+                                                    result = UploadResult.Error;
+                                                    break;
+
+                                                case true:
+                                                    result = UploadResult.AlreadyExists;
+                                                    break;
+                                            }
+                                        }
+                                        break;
+
+                                    case ConflictResolution.SnapshotAndOverwrite:
+                                        if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
+                                        {
+                                            result = UploadResult.Error;
+                                            break;
+                                        }
+
+                                        await blob.CreateSnapshotAsync(cancellationToken);
+                                        result = await UploadCoreAsync(blob, file);
+                                        break;
+
+                                    case ConflictResolution.Overwrite:
+                                        if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
+                                        {
+                                            await blob.DeleteAsync(cancellationToken);
+                                        }
+
+                                        result = await UploadCoreAsync(blob, file);
+                                        break;
+
+                                    default:
+                                    case ConflictResolution.Skip:
+                                        result = UploadResult.Conflict;
+                                        break;
+                                }
+                                break;
+                        }
+
+                        if (result.IsSuccessful())
+                        {
+                            // archive
+                            if (StorageOptions.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
+                            {
+                                Logger.LogTrace($"Archiving {blob}...");
+                                await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
+                                CostEstimator.AddWrite();
+                            }
+
+                            // deduplicate
+                            if (Options.Deduplicate)
+                            {
+                                DeduplicationService.Add(blobDirectory, hash);
+                            }
+                        }
+                    }
+
+                    // delete
+                    if (result.IsSuccessful())
+                    {
                         if (Options.Delete)
                         {
                             Logger.LogTrace($"Deleting {file}...");
