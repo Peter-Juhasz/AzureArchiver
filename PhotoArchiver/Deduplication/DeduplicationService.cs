@@ -20,9 +20,15 @@ namespace PhotoArchiver.Deduplication
 
         public async Task<bool> ContainsAsync(CloudBlobDirectory directory, byte[] hash)
         {
-            var hashes = await GetHashes(directory);
+            var key = directory.Uri.ToString();
+            if (!Store.TryGetValue(key, out var set))
+            {
+                set = await GetHashes(directory);
+                Store.Add(key, set);
+            }
+
             var encoded = Convert.ToBase64String(hash);
-            return hashes.Contains(encoded);
+            return set.Contains(encoded);
         }
 
         public void Add(CloudBlobDirectory directory, ReadOnlySpan<byte> hash)
@@ -35,34 +41,28 @@ namespace PhotoArchiver.Deduplication
 
         private async Task<HashSet<string>> GetHashes(CloudBlobDirectory directory)
         {
-            var key = directory.Uri.ToString();
-            if (!Store.TryGetValue(key, out var set))
+            var set = new HashSet<string>();
+
+            BlobContinuationToken? continuationToken = null;
+
+            do
             {
-                set = new HashSet<string>();
+                var page = await directory.ListBlobsSegmentedAsync(
+                    useFlatBlobListing: true,
+                    BlobListingDetails.Metadata,
+                    maxResults: null,
+                    currentToken: continuationToken,
+                    options: null,
+                    operationContext: null
+                );
+                CostEstimator.AddListOrCreateContainer();
 
-                BlobContinuationToken? continuationToken = null;
+                foreach (var item in page.Results.OfType<CloudBlockBlob>())
+                    set.Add(item.Properties.ContentMD5);
 
-                do
-                {
-                    var page = await directory.ListBlobsSegmentedAsync(
-                        useFlatBlobListing: true,
-                        BlobListingDetails.Metadata,
-                        maxResults: null,
-                        currentToken: continuationToken,
-                        options: null,
-                        operationContext: null
-                    );
-                    CostEstimator.AddListOrCreateContainer();
-
-                    foreach (var item in page.Results.OfType<CloudBlockBlob>())
-                        set.Add(item.Properties.ContentMD5);
-
-                    continuationToken = page.ContinuationToken;
-                }
-                while (continuationToken != null);
-
-                Store.Add(key, set);
+                continuationToken = page.ContinuationToken;
             }
+            while (continuationToken != null);
 
             return set;
         }
