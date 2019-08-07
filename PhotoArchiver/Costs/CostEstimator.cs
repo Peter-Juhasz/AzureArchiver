@@ -55,6 +55,11 @@ namespace PhotoArchiver.Costs
         public void AddKeyVaultOperation() => KeyVaultOperations++;
 
 
+        public int DescribeTransactions { get; private set; } = 0;
+
+        public void AddDescribe() => DescribeTransactions++;
+
+
         public IEnumerable<(string item, long amount)> SummarizeUsage()
         {
             if (Bytes > 0)
@@ -70,6 +75,11 @@ namespace PhotoArchiver.Costs
             if (KeyVaultOperations > 0)
             {
                 yield return ("Key Vault transactions", KeyVaultOperations);
+            }
+
+            if (DescribeTransactions > 0)
+            {
+                yield return ("Computer Vision Describe transactions", DescribeTransactions);
             }
 
             if (Reads > 0)
@@ -100,9 +110,14 @@ namespace PhotoArchiver.Costs
                 yield return ("List or Create Container operations (one time)", ListOrCreateContainers / 10000M * CostOptions.ListOrCreateContainerPricePer10000.Value);
             }
 
-            if (KeyVaultOperations > 0 && CostOptions.KeyVaultTransactionPrice != null)
+            if (KeyVaultOperations > 0 && CostOptions.KeyVaultTransactionPricePer10000 != null)
             {
-                yield return ("Key Vault operations (one time)", KeyVaultOperations / 10000M * CostOptions.KeyVaultTransactionPrice.Value);
+                yield return ("Key Vault operations (one time)", KeyVaultOperations / 10000M * CostOptions.KeyVaultTransactionPricePer10000.Value);
+            }
+
+            if (DescribeTransactions > 0 && CostOptions.ComputerVisionDescribeTransactionPricePer1000 != null)
+            {
+                yield return ("Computer Vision Describe transactions", DescribeTransactions / 1000M * CostOptions.ComputerVisionDescribeTransactionPricePer1000.Value);
             }
 
             if (Reads > 0 && CostOptions.ReadPricePer10000 != null)

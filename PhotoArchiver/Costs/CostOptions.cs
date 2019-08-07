@@ -13,7 +13,9 @@ namespace PhotoArchiver.Costs
         public decimal? DataStoragePricePerGB { get; set; }
         public decimal? GRSDataTransferPricePerGB { get; set; }
 
-        public decimal? KeyVaultTransactionPrice { get; set; }
+        public decimal? KeyVaultTransactionPricePer10000 { get; set; }
+
+        public decimal? ComputerVisionDescribeTransactionPricePer1000 { get; set; }
 
 
         public bool IsAnySet() => typeof(CostOptions).GetProperties().Any(p => p.GetValue(this) != null);

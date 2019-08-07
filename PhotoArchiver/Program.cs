@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Core;
 using Microsoft.Azure.Storage;
@@ -18,6 +20,7 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace PhotoArchiver
 {
+    using ComputerVision;
     using Costs;
     using Deduplication;
     using KeyVault;
@@ -58,6 +61,19 @@ namespace PhotoArchiver
                 .AddSingleton<TokenCache>()
                 .AddSingleton<IActiveDirectoryAccessTokenProvider, ActiveDirectoryAccessTokenProvider>()
                 .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
+
+                // vision
+                .Configure<ComputerVisionOptions>(configuration.GetSection("ComputerVision"))
+                .AddSingleton<IComputerVisionClient>(sp =>
+                {
+                    var options = sp.GetRequiredService<IOptions<ComputerVisionOptions>>().Value;
+                    var client = new ComputerVisionClient(new ApiKeyServiceClientCredentials(options.Key), Array.Empty<DelegatingHandler>());
+                    if (options.Endpoint != null)
+                    {
+                        client.Endpoint = options.Endpoint.ToString();
+                    }
+                    return client;
+                })
 
                 // costs
                 .Configure<CostOptions>(configuration.GetSection("Costs"))

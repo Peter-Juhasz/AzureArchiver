@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <PackageReference Include="MetadataExtractor" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Azure.CognitiveServices.Vision.ComputerVision" Version="5.0.0" />
     <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.4" />
     <PackageReference Include="Microsoft.Azure.KeyVault.Extensions" Version="3.0.4" />
     <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="10.0.3" />

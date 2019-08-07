@@ -12,6 +12,7 @@ Requirements:
    - (optional) [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) for encryption
      - An RSA 2048/3072/4096-bit, Software/HSM Key in Key Vault
      - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+   - (optional) [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) for image tagging and captions
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
@@ -54,6 +55,9 @@ So you can set the configuration in `appsettings.json`:
    - `ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
    - `ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
    - `TenantId`: the Id of the Active Directory Tenant of the AD App
+ - `ComputerVision` Azure Cognitive Services Computer Vision credentials for image tagging
+   - `Endpoint`: URL of the Cognitive Service account endpoint
+   - `Key`: subscription key for the service
  - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
    - `Currency` (default `"$"`): currency to display costs
    - `ListOrCreateContainerPricePer10000`
@@ -62,7 +66,8 @@ So you can set the configuration in `appsettings.json`:
    - `OtherPricePer10000`
    - `DataStoragePricePerGB`
    - `GRSDataTransferPricePerGB`: leave it empty if your Storage Account is not geo-replicated
-   - `KeyVaultTransactionPrice`: leave it empty if you don't use Key Vault
+   - `KeyVaultTransactionPricePer10000`: leave it empty if you don't use Key Vault
+   - `ComputerVisionDescribeTransactionPricePer1000`: leave if empty if you don't use Computer Vision
 
 For example:
 ```json
