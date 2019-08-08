@@ -16,6 +16,7 @@ namespace PhotoArchiver.Costs
         public decimal? KeyVaultTransactionPricePer10000 { get; set; }
 
         public decimal? ComputerVisionDescribeTransactionPricePer1000 { get; set; }
+        public decimal? FaceTransactionPricePer1000 { get; set; }
 
 
         public bool IsAnySet() => typeof(CostOptions).GetProperties().Any(p => p.GetValue(this) != null);

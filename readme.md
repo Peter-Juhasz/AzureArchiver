@@ -13,6 +13,7 @@ Requirements:
      - An RSA 2048/3072/4096-bit, Software/HSM Key in Key Vault
      - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
    - (optional) [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) for image tagging and captions
+   - (optional) [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/) for face identification
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
@@ -58,6 +59,10 @@ So you can set the configuration in `appsettings.json`:
  - `ComputerVision` Azure Cognitive Services Computer Vision credentials for image tagging
    - `Endpoint`: URL of the Cognitive Service account endpoint
    - `Key`: subscription key for the service
+ - `Face` Azure Cognitive Services Face credentials for face identification
+   - `Endpoint`: URL of the Cognitive Service account endpoint
+   - `Key`: subscription key for the service
+   - `ConfidenceThreshold`: confidence threshold of identification, used to judge whether one face belong to one person
  - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
    - `Currency` (default `"$"`): currency to display costs
    - `ListOrCreateContainerPricePer10000`

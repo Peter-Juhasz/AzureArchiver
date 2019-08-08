@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
+using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Azure.KeyVault.Core;
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
@@ -26,6 +27,7 @@ namespace PhotoArchiver
     using Costs;
     using Deduplication;
     using Extensions;
+    using Face;
     using Formats;
     using KeyVault;
     using Storage;
@@ -37,10 +39,12 @@ namespace PhotoArchiver
             IOptions<StorageOptions> storageOptions,
             IOptions<KeyVaultOptions> keyVaultOptions,
             IOptions<ComputerVisionOptions> computerVisionOptions,
+            IOptions<FaceOptions> faceOptions,
             CloudBlobClient client,
             IKeyResolver keyResolver,
             IDeduplicationService deduplicationService,
             IComputerVisionClient computerVisionClient,
+            IFaceClient faceClient,
             CostEstimator costEstimator,
             ILogger<Archiver> logger
         )
@@ -49,10 +53,12 @@ namespace PhotoArchiver
             StorageOptions = storageOptions.Value;
             KeyVaultOptions = keyVaultOptions.Value;
             ComputerVisionOptions = computerVisionOptions;
+            FaceOptions = faceOptions;
             Client = client;
             KeyResolver = keyResolver;
             DeduplicationService = deduplicationService;
             ComputerVisionClient = computerVisionClient;
+            FaceClient = faceClient;
             CostEstimator = costEstimator;
             Logger = logger;
         }
@@ -61,10 +67,12 @@ namespace PhotoArchiver
         protected StorageOptions StorageOptions { get; }
         protected KeyVaultOptions KeyVaultOptions { get; }
         protected IOptions<ComputerVisionOptions> ComputerVisionOptions { get; }
+        protected IOptions<FaceOptions> FaceOptions { get; }
         protected CloudBlobClient Client { get; }
         protected IKeyResolver KeyResolver { get; }
         protected IDeduplicationService DeduplicationService { get; }
         protected IComputerVisionClient ComputerVisionClient { get; }
+        protected IFaceClient FaceClient { get; }
         protected CostEstimator CostEstimator { get; }
         protected ILogger<Archiver> Logger { get; }
 
@@ -153,8 +161,8 @@ namespace PhotoArchiver
                 }
 
                 UploadResult result = default;
+                IDictionary<string, string> metadata = new Dictionary<string, string>();
                 byte[]? hash = null;
-                ImageDescription? description = null;
 
                 try
                 {
@@ -175,6 +183,9 @@ namespace PhotoArchiver
 
                     // blob
                     var blobDirectory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
+                    metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
+                    metadata.Add("CreatedAt", date.Value.ToString("o"));
+                    metadata.Add("OriginalFileSize", file.Length.ToString());
 
                     // deduplicate
                     if (Options.Deduplicate)
@@ -182,6 +193,7 @@ namespace PhotoArchiver
                         using var hashAlgorithm = MD5.Create();
                         using var stream = file.OpenRead();
                         hash = hashAlgorithm.ComputeHash(stream);
+                        metadata.Add("OriginalMD5", Convert.ToBase64String(hash));
 
                         if (await DeduplicationService.ContainsAsync(blobDirectory, hash))
                         {
@@ -189,17 +201,49 @@ namespace PhotoArchiver
                         }
                     }
 
-                    // computer vision
-                    if (ComputerVisionOptions.Value.IsEnabled())
+                    if (file.IsCognitiveServiceCompatible())
                     {
-                        if (file.Length <= 4 * 1024 * 1024 && file.Extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase))
+                        // computer vision
+                        if (ComputerVisionOptions.Value.IsEnabled())
                         {
                             using var stream = file.OpenRead();
                             try
                             {
-                                description = await ComputerVisionClient.DescribeImageInStreamAsync(stream);
+                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(stream);
+                                CostEstimator.AddDescribe();
+                                if (description.Captions.Any())
+                                {
+                                    metadata.Add("Caption", description.Captions.OrderByDescending(c => c.Confidence).First().Text);
+                                }
+                                if (description.Tags.Any())
+                                {
+                                    metadata.Add("Tags", String.Join(", ", description.Tags));
+                                }
                             }
                             catch (ComputerVisionErrorException ex)
+                            {
+                                Logger.LogWarning(ex, ex.Message);
+                            }
+                        }
+
+                        // face
+                        if (FaceOptions.Value.IsEnabled())
+                        {
+                            using var stream = file.OpenRead();
+                            try
+                            {
+                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(stream, returnFaceId: true);
+                                CostEstimator.AddFace();
+                                var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId.Value).ToList();
+                                var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.Value.PersonGroupId, confidenceThreshold: FaceOptions.Value.ConfidenceThreshold);
+                                CostEstimator.AddFace();
+
+                                if (identifyResult.Any())
+                                {
+                                    metadata.Add("People", String.Join(", ", identifyResult.Select(r => r.Candidates.OrderByDescending(c => c.Confidence).First()).Select(c => c.PersonId)));
+                                }
+                            }
+                            catch (Exception ex)
                             {
                                 Logger.LogWarning(ex, ex.Message);
                             }
@@ -211,7 +255,7 @@ namespace PhotoArchiver
                         var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
                         // add metadata
-                        AddMetadata(blob, file, date.Value, hash, description);
+                        AddMetadata(blob, metadata);
 
                         // set metadata
                         if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
@@ -244,11 +288,12 @@ namespace PhotoArchiver
                                                 using var hashAlgorithm = MD5.Create();
                                                 using var stream = file.OpenRead();
                                                 hash = hashAlgorithm.ComputeHash(stream);
+                                                metadata.TryAdd("OriginalMD5", Convert.ToBase64String(hash));
                                             }
                                             var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
 
                                             blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
-                                            AddMetadata(blob, file, date.Value, hash, description);
+                                            AddMetadata(blob, metadata);
 
                                             // upload with new name
                                             switch (await ExistsAndCompareAsync(blob, file))
@@ -343,27 +388,11 @@ namespace PhotoArchiver
             return new ArchiveResult(results);
         }
 
-        private static void AddMetadata(CloudBlockBlob blob, FileInfo file, DateTime date, byte[]? hash, ImageDescription description)
+        private static void AddMetadata(CloudBlockBlob blob, IDictionary<string, string> metadata)
         {
-            blob.Metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
-            blob.Metadata.Add("CreatedAt", date.ToString("o"));
-            blob.Metadata.Add("OriginalFileSize", file.Length.ToString()); // for encryption
-
-            if (hash != null)
+            foreach (var kv in metadata)
             {
-                blob.Metadata.Add("OriginalMD5", Convert.ToBase64String(hash));
-            }
-
-            if (description != null)
-            {
-                if (description.Captions.Any())
-                {
-                    blob.Metadata.Add("Caption", description.Captions.OrderByDescending(c => c.Confidence).First().Text);
-                }
-                if (description.Tags.Any())
-                {
-                    blob.Metadata.Add("Tags", String.Join(", ", description.Tags));
-                }
+                blob.Metadata.Add(kv.Key, kv.Value);
             }
         }
 

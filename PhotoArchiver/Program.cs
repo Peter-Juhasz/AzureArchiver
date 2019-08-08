@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Core;
@@ -23,6 +24,7 @@ namespace PhotoArchiver
     using ComputerVision;
     using Costs;
     using Deduplication;
+    using Face;
     using KeyVault;
     using Logging;
     using Update;
@@ -67,7 +69,20 @@ namespace PhotoArchiver
                 .AddSingleton<IComputerVisionClient>(sp =>
                 {
                     var options = sp.GetRequiredService<IOptions<ComputerVisionOptions>>().Value;
-                    var client = new ComputerVisionClient(new ApiKeyServiceClientCredentials(options.Key), Array.Empty<DelegatingHandler>());
+                    var client = new ComputerVisionClient(new Microsoft.Azure.CognitiveServices.Vision.ComputerVision.ApiKeyServiceClientCredentials(options.Key), Array.Empty<DelegatingHandler>());
+                    if (options.Endpoint != null)
+                    {
+                        client.Endpoint = options.Endpoint.ToString();
+                    }
+                    return client;
+                })
+
+                // face
+                .Configure<FaceOptions>(configuration.GetSection("Face"))
+                .AddSingleton<IFaceClient>(sp =>
+                {
+                    var options = sp.GetRequiredService<IOptions<FaceOptions>>().Value;
+                    var client = new FaceClient(new Microsoft.Azure.CognitiveServices.Vision.Face.ApiKeyServiceClientCredentials(options.Key), Array.Empty<DelegatingHandler>());
                     if (options.Endpoint != null)
                     {
                         client.Endpoint = options.Endpoint.ToString();

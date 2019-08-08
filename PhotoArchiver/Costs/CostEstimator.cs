@@ -60,6 +60,11 @@ namespace PhotoArchiver.Costs
         public void AddDescribe() => DescribeTransactions++;
 
 
+        public int FaceTransactions { get; private set; } = 0;
+
+        public void AddFace() => FaceTransactions++;
+
+
         public IEnumerable<(string item, long amount)> SummarizeUsage()
         {
             if (Bytes > 0)
@@ -80,6 +85,11 @@ namespace PhotoArchiver.Costs
             if (DescribeTransactions > 0)
             {
                 yield return ("Computer Vision Describe transactions", DescribeTransactions);
+            }
+
+            if (FaceTransactions > 0)
+            {
+                yield return ("Face transactions", FaceTransactions);
             }
 
             if (Reads > 0)
@@ -118,6 +128,11 @@ namespace PhotoArchiver.Costs
             if (DescribeTransactions > 0 && CostOptions.ComputerVisionDescribeTransactionPricePer1000 != null)
             {
                 yield return ("Computer Vision Describe transactions", DescribeTransactions / 1000M * CostOptions.ComputerVisionDescribeTransactionPricePer1000.Value);
+            }
+
+            if (FaceTransactions > 0 && CostOptions.FaceTransactionPricePer1000 != null)
+            {
+                yield return ("Face transactions", FaceTransactions / 1000M * CostOptions.FaceTransactionPricePer1000.Value);
             }
 
             if (Reads > 0 && CostOptions.ReadPricePer10000 != null)
