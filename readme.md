@@ -9,11 +9,6 @@ This app uploads and optionally encrypts your files like `IMG_20190727_123456.jp
 Requirements:
  - [Microsoft Azure subscription](https://azure.microsoft.com/)
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
-   - (optional) [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) for encryption
-     - An RSA 2048/3072/4096-bit, Software/HSM Key in Key Vault
-     - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
-   - (optional) [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) for image tagging and captions
-   - (optional) [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/) for face identification
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
@@ -32,9 +27,15 @@ You can also save your credentials to a configuration file. See below.
 
 ## Configuration
 
-Configuration is based on the .NET Standard library and reads from JSON file and/or command-line arguments.
+Configuration is based on the .NET Standard library and the application reads it from JSON file and/or command-line arguments.
 
-So you can set the configuration in `appsettings.json`:
+### Basic
+ - `Storage` properties of Storage Account
+   - **`ConnectionString`**: the connection string for your Azure Storage
+ - `Upload` upload settings
+   - **`Path`**: the directory to upload the files from
+
+### Advanced
  - `Storage` properties of Storage Account
    - **`ConnectionString`**: the connection string for your Azure Storage
    - `Container` (default `"photos"`): the name of the container to upload files to
@@ -51,30 +52,9 @@ So you can set the configuration in `appsettings.json`:
      - `"KeepBoth"`: the hash of the file to be uploaded is appended to its file name, right before its extension, and gets uploaded. The already existing blob is kept and not modified.
      - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
      - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
- - `KeyVault` Azure Key Vault for encryption/decryption
-   - `KeyIdentifier`: the full URL of the Azure Key Vault key to use for encryption
-   - `ClientId`: the Client Id of the Active Directory App used to connect to Key Vault
-   - `ClientSecret`: the Client Secret of the Active Directory App used to connect to Key Vault
-   - `TenantId`: the Id of the Active Directory Tenant of the AD App
- - `ComputerVision` Azure Cognitive Services Computer Vision credentials for image tagging
-   - `Endpoint`: URL of the Cognitive Service account endpoint
-   - `Key`: subscription key for the service
- - `Face` Azure Cognitive Services Face credentials for face identification
-   - `Endpoint`: URL of the Cognitive Service account endpoint
-   - `Key`: subscription key for the service
-   - `ConfidenceThreshold`: confidence threshold of identification, used to judge whether one face belong to one person
- - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
-   - `Currency` (default `"$"`): currency to display costs
-   - `ListOrCreateContainerPricePer10000`
-   - `ReadPricePer10000`
-   - `WritePricePer10000`
-   - `OtherPricePer10000`
-   - `DataStoragePricePerGB`
-   - `GRSDataTransferPricePerGB`: leave it empty if your Storage Account is not geo-replicated
-   - `KeyVaultTransactionPricePer10000`: leave it empty if you don't use Key Vault
-   - `ComputerVisionDescribeTransactionPricePer1000`: leave if empty if you don't use Computer Vision
 
-For example:
+### Configuration file
+You can persist your configuration into a file named `appsettings.json`, for example:
 ```json
 {
 	"Storage": {
@@ -86,10 +66,69 @@ For example:
 }
 ```
 
-Or in CLI arguments:
+Or supply as CLI arguments:
 ```ps
 .\PhotoArchiver.exe --Upload:Path "D:\OneDrive\Camera Roll" --Storage:Archive false --Upload:Delete true
 ```
+
+## Advanced features
+
+### Encryption
+Encrypts your blobs using [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/).
+
+Requirements:
+   - [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) for encryption
+     - An RSA 2048/3072/4096-bit, Software/HSM Key in Key Vault
+     - Azure Active Directory App [read the docs](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+
+Configuration:
+ - `KeyVault` Azure Key Vault for encryption/decryption
+   - **`KeyIdentifier`**: the full URL of the Azure Key Vault key to use for encryption
+   - **`ClientId`**: the Client Id of the Active Directory App used to connect to Key Vault
+   - **`ClientSecret`**: the Client Secret of the Active Directory App used to connect to Key Vault
+   - **`TenantId`**: the Id of the Active Directory Tenant of the AD App
+
+### Cost estimation
+Estimates transaction and storage costs for your uploaded data.
+
+Requirements:
+ - Configuration, get pricing from [Azure Storage Pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/)
+
+Configuration:
+ - `Costs` set the prices based on your region and redundancy for cost estimations (see [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/))
+   - `Currency` (default `"$"`): currency to display costs
+   - `ListOrCreateContainerPricePer10000`
+   - `ReadPricePer10000`
+   - `WritePricePer10000`
+   - `OtherPricePer10000`
+   - `DataStoragePricePerGB`
+   - `GRSDataTransferPricePerGB`: leave it empty if your Storage Account is not geo-replicated
+   - `KeyVaultTransactionPricePer10000`: leave it empty if you don't use Key Vault
+   - `ComputerVisionDescribeTransactionPricePer1000`: leave if empty if you don't use Computer Vision
+
+### Tagging and caption generation 
+Generates a caption and tags for each photo based on their visual content using [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) and saves them to metadata.
+
+Requirements:
+ - [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/)
+
+Configuration:
+ - `ComputerVision` Azure Cognitive Services Computer Vision credentials for image tagging
+   - **`Endpoint`**: URL of the Cognitive Service account endpoint
+   - **`Key`**: subscription key for the service
+
+### Face identification
+Identifies familiar faces on photos using [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/) and saves them to blob metadata.
+
+Requirements:
+ - [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/)
+   - A pre-trained Person Group.
+
+Configuration:
+ - `Face` Azure Cognitive Services Face credentials for face identification
+   - **`Endpoint`**: URL of the Cognitive Service account endpoint
+   - **`Key`**: subscription key for the service
+   - `ConfidenceThreshold`: confidence threshold of identification, used to judge whether one face belong to one person
 
 ## Information
 
@@ -118,6 +157,15 @@ Supported sources to upload from:
    - Google Drive
  - USB, CD, DVD drives
 
+Metadata appended to blobs:
+ - `OriginalFileName`: the full path of the file on the disk
+ - `OriginalFileSize`: the size of the unencrypted file which may be different when encrypted
+ - `OriginalMD5`: the hash of the unencrypted file
+ - `CreatedAt`: the detected date and time the media was originally created
+ - `Caption`: the image description generated by Computer Vision
+ - `Tags`: tags generated by Computer Vision
+ - `People`: IDs of persons identified by Face API
+
 A single file is uploaded at a time.
 
 ## Disclaimer
@@ -130,7 +178,7 @@ Requirements:
  - Visual Studio 2019 Preview
  - .NET Core SDK 2.2
 
-Place a file named `appsettings.json` into your project, at least as a placeholder.
+Place a file named `appsettings.json` into your project, at least as a placeholder. Also, set `Update:Enabled` to `false`, if you want to turn off update checks.
 
 ## Troubleshooting
 
@@ -141,6 +189,7 @@ Place a file named `appsettings.json` into your project, at least as a placehold
    - If you want to delete the files as well, make sure you have Delete permission.
    - Also, that the files are not in use anywhere else.
  - If you want to encrypt using Key Vault, make sure your AD App is defined in the Key Vault access policies.
+ - Computer Vision and Face API supports files up to 4 MB in size and only JPEG images.
  
 ## Related resources
  - [Create a Storage Account](https://docs.microsoft.com/en-us/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal)
