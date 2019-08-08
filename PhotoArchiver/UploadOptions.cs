@@ -15,5 +15,7 @@
         public ConflictResolution ConflictResolution { get; set; } = ConflictResolution.Skip;
 
         public bool Deduplicate { get; set; } = false;
+
+        public int? ParallelBlockCount { get; set; }
     }
 }

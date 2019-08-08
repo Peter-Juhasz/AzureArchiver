@@ -449,6 +449,7 @@ namespace PhotoArchiver
             var requestOptions = new BlobRequestOptions
             {
                 StoreBlobContentMD5 = true,
+                ParallelOperationThreadCount = Options.ParallelBlockCount,
             };
             if (KeyVaultOptions.IsEnabled())
             {

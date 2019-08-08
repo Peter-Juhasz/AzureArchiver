@@ -1,6 +1,6 @@
-# Archive photos to Azure Storage
+ï»¿# Archive photos to Azure Storage
 
-Archive your photos and videos to [Azure Archive Storage](https://azure.microsoft.com/en-us/services/storage/archive/) with the lowest cost of €0.00084/GB/mo or €0.8/TB/mo. See detailed [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).
+Archive your photos and videos to [Azure Archive Storage](https://azure.microsoft.com/en-us/services/storage/archive/) with the lowest cost of â‚¬0.00084/GB/mo or â‚¬0.8/TB/mo. See detailed [pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).
 
 This app uploads and optionally encrypts your files like `IMG_20190727_123456.jpg` or `DSC_5438.NEF`, groups them by date into directories like `2019`/`07`/`27` and sets their tiers to Archive to save cost.
 
@@ -26,7 +26,6 @@ dotnet PhotoArchiver.dll --Upload:Path="D:\OneDrive\Camera Roll" --Storage:Conne
 You can also save your credentials to a configuration file. See below.
 
 ## Configuration
-
 Configuration is based on the .NET Standard library and the application reads it from JSON file and/or command-line arguments.
 
 ### Basic
@@ -39,7 +38,7 @@ Configuration is based on the .NET Standard library and the application reads it
  - `Storage` properties of Storage Account
    - **`ConnectionString`**: the connection string for your Azure Storage
    - `Container` (default `"photos"`): the name of the container to upload files to
-   - `Archive` (default `true`): archive files after upload
+   - `Archive` (default `true`): set tier of blobs to *Archive* after upload
    - `DirectoryFormat` (default `"{0:yyyy}/{0:MM}/{0:dd}"`): format string for blob directories that blob are organized into ([see docs](https://docs.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings))
  - `Upload` upload settings
    - **`Path`**: the directory to upload the files from
@@ -52,6 +51,7 @@ Configuration is based on the .NET Standard library and the application reads it
      - `"KeepBoth"`: the hash of the file to be uploaded is appended to its file name, right before its extension, and gets uploaded. The already existing blob is kept and not modified.
      - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
      - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
+   - `ParallelBlockCount` (default `1`): the number of blocks of a single blob that may be simultaneously uploaded ([see docs](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.storage.blob.blobrequestoptions.paralleloperationthreadcount?view=azure-dotnet))
 
 ### Configuration file
 You can persist your configuration into a file named `appsettings.json`, for example:
