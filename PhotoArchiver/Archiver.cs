@@ -459,6 +459,7 @@ namespace PhotoArchiver
             {
                 case ".jpg":
                 case ".jpeg":
+                case ".jfif":
                 case ".heif":
                 case ".heic":
                     {
