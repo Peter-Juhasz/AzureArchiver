@@ -196,6 +196,7 @@ namespace PhotoArchiver
                     // deduplicate
                     if (Options.Deduplicate)
                     {
+                        Logger.LogTrace($"Computing hash for {file}...");
                         using var hashAlgorithm = MD5.Create();
                         using var stream = file.OpenRead();
                         hash = hashAlgorithm.ComputeHash(stream);
@@ -215,6 +216,7 @@ namespace PhotoArchiver
                             using var stream = file.OpenRead();
                             try
                             {
+                                Logger.LogTrace($"Describing {file}...");
                                 var description = await ComputerVisionClient.DescribeImageInStreamAsync(stream);
                                 CostEstimator.AddDescribe();
                                 if (description.Captions.Any())
@@ -238,6 +240,7 @@ namespace PhotoArchiver
                             using var stream = file.OpenRead();
                             try
                             {
+                                Logger.LogTrace($"Detecing faces in {file}...");
                                 var faceResult = await FaceClient.Face.DetectWithStreamAsync(stream, returnFaceId: true);
                                 CostEstimator.AddFace();
                                 var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
@@ -270,7 +273,7 @@ namespace PhotoArchiver
                         }
 
                         // check for extistance
-                        switch (await ExistsAndCompareAsync(blob, file))
+                        switch (await ExistsAndCompareAsync(blob, file, hash))
                         {
                             // upload, if not exists
                             case null:
@@ -291,6 +294,7 @@ namespace PhotoArchiver
                                             // compute hash for new file name
                                             if (hash == null)
                                             {
+                                                Logger.LogTrace($"Computing hash for {file}...");
                                                 using var hashAlgorithm = MD5.Create();
                                                 using var stream = file.OpenRead();
                                                 hash = hashAlgorithm.ComputeHash(stream);
@@ -302,7 +306,7 @@ namespace PhotoArchiver
                                             AddMetadata(blob, metadata);
 
                                             // upload with new name
-                                            switch (await ExistsAndCompareAsync(blob, file))
+                                            switch (await ExistsAndCompareAsync(blob, file, hash))
                                             {
                                                 case null:
                                                     result = await UploadCoreAsync(blob, file);
@@ -406,7 +410,7 @@ namespace PhotoArchiver
             }
         }
 
-        private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileInfo file)
+        private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileInfo file, byte[]? hash)
         {
             // check for exists
             Logger.LogTrace($"Checking for {blob} exists...");
@@ -426,9 +430,12 @@ namespace PhotoArchiver
                 // compare hash
                 Logger.LogTrace($"Computing MD5 hash for {file}...");
                 var reference = Convert.FromBase64String(blob.Properties.ContentMD5);
-                using var alg = MD5.Create();
-                using var stream = file.OpenRead();
-                var hash = alg.ComputeHash(stream);
+                if (hash == null)
+                {
+                    using var alg = MD5.Create();
+                    using var stream = file.OpenRead();
+                    hash = alg.ComputeHash(stream);
+                }
 
                 if (!reference.AsSpan().SequenceEqual(hash.AsSpan()))
                 {
