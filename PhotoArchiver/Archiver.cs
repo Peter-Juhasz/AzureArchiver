@@ -30,6 +30,7 @@ namespace PhotoArchiver
     using Face;
     using Formats;
     using KeyVault;
+    using Progress;
     using Storage;
 
     public class Archiver
@@ -46,6 +47,7 @@ namespace PhotoArchiver
             IComputerVisionClient computerVisionClient,
             IFaceClient faceClient,
             CostEstimator costEstimator,
+            IProgressIndicator progressIndicator,
             ILogger<Archiver> logger
         )
         {
@@ -60,6 +62,7 @@ namespace PhotoArchiver
             ComputerVisionClient = computerVisionClient;
             FaceClient = faceClient;
             CostEstimator = costEstimator;
+            ProgressIndicator = progressIndicator;
             Logger = logger;
         }
 
@@ -74,6 +77,7 @@ namespace PhotoArchiver
         protected IComputerVisionClient ComputerVisionClient { get; }
         protected IFaceClient FaceClient { get; }
         protected CostEstimator CostEstimator { get; }
+        protected IProgressIndicator ProgressIndicator { get; }
         protected ILogger<Archiver> Logger { get; }
 
         private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -148,6 +152,8 @@ namespace PhotoArchiver
             // estimate count
             var processedCount = 0;
             var count = query.Count();
+
+            ProgressIndicator.Initialize();
 
             // enumerate files in directory
             foreach (var file in query)
@@ -378,12 +384,16 @@ namespace PhotoArchiver
                     result = UploadResult.Error;
                     Logger.LogError(ex, $"Failed to process {file}");
                     results.Add(new FileUploadResult(file, result, ex));
+                    ProgressIndicator.Error();
                 }
                 finally
                 {
                     processedCount++;
+                    ProgressIndicator.Set(processedCount, count);
                 }
             }
+
+            ProgressIndicator.Finished();
 
             return new ArchiveResult(results);
         }

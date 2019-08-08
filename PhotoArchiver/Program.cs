@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 using Microsoft.Azure.CognitiveServices.Vision.Face;
@@ -27,6 +28,7 @@ namespace PhotoArchiver
     using Face;
     using KeyVault;
     using Logging;
+    using Progress;
     using Update;
     using Storage;
 
@@ -41,7 +43,7 @@ namespace PhotoArchiver
                 .Build();
 
             // set up services
-            using var serviceProvider = new ServiceCollection()
+            var services = new ServiceCollection()
                 // logging
                 .AddLogging(builder => builder
                     .AddConsole(options =>
@@ -98,7 +100,7 @@ namespace PhotoArchiver
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
                 .AddScoped<IDeduplicationService, DeduplicationService>()
-
+                
                 // update
                 .Configure<UpdateOptions>(configuration.GetSection("Update"))
                 .AddSingleton<IUpdateService, GitHubUpdateService>()
@@ -106,8 +108,20 @@ namespace PhotoArchiver
                     {
                         client.DefaultRequestHeaders.Add("User-Agent", "AzureArchiver");
                     }).Services
+            ;
 
-                .BuildServiceProvider();
+            // add platform dependant services
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                services.AddScoped<IProgressIndicator, WindowsTaskbarProgressIndicator>();
+            }
+            else
+            {
+                services.AddSingleton<IProgressIndicator, NullProgressIndicator>();
+            }
+
+            // build
+            using var serviceProvider = services.BuildServiceProvider();
 
             // initialize
             using var scope = serviceProvider.CreateScope();
