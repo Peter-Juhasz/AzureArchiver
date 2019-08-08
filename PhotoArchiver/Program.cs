@@ -137,11 +137,11 @@ namespace PhotoArchiver
 
             // check for updates
             var updateService = provider.GetRequiredService<IUpdateService>();
-            var updateOptions = provider.GetRequiredService<IOptions<UpdateOptions>>();
+            var updateOptions = provider.GetRequiredService<IOptions<UpdateOptions>>().Value;
 
-            if (updateOptions.Value.Enabled && await updateService.CheckForUpdatesAsync())
+            if (updateOptions.Enabled && await updateService.CheckForUpdatesAsync())
             {
-                logger.LogWarning($"A new version is available. You can download it from {updateOptions.Value.Home}");
+                logger.LogWarning($"A new version is available. You can download it from {updateOptions.Home}");
             }
 
             // create container if not exists

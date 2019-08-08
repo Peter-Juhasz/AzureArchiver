@@ -37,7 +37,7 @@ namespace PhotoArchiver.Progress
 
             if (processed > all)
             {
-                throw new ArgumentOutOfRangeException(nameof(processed));
+                processed = all;
             }
 
             TaskbarProgress.SetValue(WindowHandle, processed, all);

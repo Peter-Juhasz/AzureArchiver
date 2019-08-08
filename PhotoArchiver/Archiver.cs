@@ -13,6 +13,7 @@ using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Azure.KeyVault.Core;
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
+using Microsoft.Azure.Storage.RetryPolicies;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -303,7 +304,13 @@ namespace PhotoArchiver
                                             var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
 
                                             blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
+
+                                            // set metadata
                                             AddMetadata(blob, metadata);
+                                            if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out mimeType))
+                                            {
+                                                blob.Properties.ContentType = mimeType;
+                                            }
 
                                             // upload with new name
                                             switch (await ExistsAndCompareAsync(blob, file, hash))
@@ -456,7 +463,9 @@ namespace PhotoArchiver
             var requestOptions = new BlobRequestOptions
             {
                 StoreBlobContentMD5 = true,
+                DisableContentMD5Validation = false,
                 ParallelOperationThreadCount = Options.ParallelBlockCount,
+                LocationMode = LocationMode.PrimaryOnly,
             };
             if (KeyVaultOptions.IsEnabled())
             {
