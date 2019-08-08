@@ -123,7 +123,7 @@ namespace PhotoArchiver
 
             if (KeyVaultOptions.IsEnabled())
             {
-                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier.ToString(), cancellationToken);
+                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
             }
 
             // set up filter
@@ -234,7 +234,7 @@ namespace PhotoArchiver
                             {
                                 var faceResult = await FaceClient.Face.DetectWithStreamAsync(stream, returnFaceId: true);
                                 CostEstimator.AddFace();
-                                var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId.Value).ToList();
+                                var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
                                 var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.Value.PersonGroupId, confidenceThreshold: FaceOptions.Value.ConfidenceThreshold);
                                 CostEstimator.AddFace();
 

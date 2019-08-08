@@ -42,7 +42,7 @@ namespace PhotoArchiver.Update
 
         private class ReleaseDto
         {
-            public string Name { get; set; }
+            public string? Name { get; set; }
         }
     }
 }

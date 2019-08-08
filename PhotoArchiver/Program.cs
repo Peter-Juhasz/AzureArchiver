@@ -114,9 +114,9 @@ namespace PhotoArchiver
             var provider = scope.ServiceProvider;
 
             var archiver = provider.GetRequiredService<Archiver>();
-            var options = provider.GetRequiredService<IOptions<UploadOptions>>();
-            var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>();
-            var costOptions = provider.GetRequiredService<IOptions<CostOptions>>();
+            var options = provider.GetRequiredService<IOptions<UploadOptions>>().Value;
+            var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
+            var costOptions = provider.GetRequiredService<IOptions<CostOptions>>().Value;
             var client = provider.GetRequiredService<CloudBlobClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
@@ -132,7 +132,7 @@ namespace PhotoArchiver
 
             // create container if not exists
             logger.LogTrace("Ensure container exists...");
-            if (await client.GetContainerReference(storageOptions.Value.Container).CreateIfNotExistsAsync())
+            if (await client.GetContainerReference(storageOptions.Container).CreateIfNotExistsAsync())
             {
                 logger.LogInformation("Container created.");
                 costEstimator.AddListOrCreateContainer();
@@ -140,7 +140,7 @@ namespace PhotoArchiver
 
             // start
             var watch = Stopwatch.StartNew();
-            var result = await archiver.ArchiveAsync(options.Value.Path, default);
+            var result = await archiver.ArchiveAsync(options.Path!, default);
             watch.Stop();
 
             // summarize results
@@ -163,7 +163,7 @@ namespace PhotoArchiver
             if (costsSummary.Any())
             {
                 logger.LogInformation($"Estimated costs:");
-                logger.LogInformation(string.Join(Environment.NewLine, costsSummary.Select(t => $"{t.item.PadRight(48, ' ')}\t{costOptions.Value.Currency} {t.cost:N8}")));
+                logger.LogInformation(string.Join(Environment.NewLine, costsSummary.Select(t => $"{t.item.PadRight(48, ' ')}\t{costOptions.Currency} {t.cost:N8}")));
             }
         }
     }

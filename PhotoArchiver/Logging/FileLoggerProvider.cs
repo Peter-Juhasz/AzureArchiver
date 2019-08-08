@@ -43,7 +43,7 @@ namespace PhotoArchiver.Logging
             private static readonly object SyncRoot = new object();
 
 
-            public IDisposable BeginScope<TState>(TState state) => null;
+            public IDisposable? BeginScope<TState>(TState state) => null;
 
             public bool IsEnabled(LogLevel logLevel) => true;
 
