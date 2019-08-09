@@ -10,6 +10,10 @@
         {
         }
 
+        public void Indeterminate()
+        {
+        }
+
         public void Initialize()
         {
         }

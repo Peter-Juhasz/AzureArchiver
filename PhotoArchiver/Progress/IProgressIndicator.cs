@@ -4,6 +4,8 @@
     {
         void Initialize();
 
+        void Indeterminate();
+
         void Set(int processed, int all);
 
         void Finished();

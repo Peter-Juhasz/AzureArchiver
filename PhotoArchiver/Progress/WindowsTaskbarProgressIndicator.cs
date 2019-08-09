@@ -23,6 +23,11 @@ namespace PhotoArchiver.Progress
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Normal);
         }
 
+        public void Indeterminate()
+        {
+            TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Indeterminate);
+        }
+
         public void Set(int processed, int all)
         {
             if (processed < 0)
@@ -56,7 +61,6 @@ namespace PhotoArchiver.Progress
 
         [DllImport("user32.dll", EntryPoint = "FindWindow", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr FindWindowByCaption(IntPtr zeroOnly, string lpWindowName);
-
 
         private static class TaskbarProgress
         {

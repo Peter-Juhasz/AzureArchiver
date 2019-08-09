@@ -120,7 +120,7 @@ namespace PhotoArchiver
         public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
         {
             // initialize
-            ProgressIndicator.Initialize();
+            ProgressIndicator.Indeterminate();
             var directory = new DirectoryInfo(path);
             var container = Client.GetContainerReference(StorageOptions.Container);
             var lastDirectoryName = null as string;
@@ -156,6 +156,7 @@ namespace PhotoArchiver
             var count = query.Count();
 
             // enumerate files in directory
+            ProgressIndicator.Initialize();
             foreach (var file in query)
             {
                 cancellationToken.ThrowIfCancellationRequested();
