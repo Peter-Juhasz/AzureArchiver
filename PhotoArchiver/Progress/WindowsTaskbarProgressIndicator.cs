@@ -51,6 +51,7 @@ namespace PhotoArchiver.Progress
         public void Finished()
         {
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.NoProgress);
+            FlashWindow(WindowHandle);
         }
 
         public void Error()
@@ -61,6 +62,37 @@ namespace PhotoArchiver.Progress
 
         [DllImport("user32.dll", EntryPoint = "FindWindow", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr FindWindowByCaption(IntPtr zeroOnly, string lpWindowName);
+
+        private const UInt32 FLASHW_ALL = 3;
+        private const UInt32 FLASHW_TIMERNOFG = 12;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
+
+        public static void FlashWindow(IntPtr windowHandle)
+        {
+            FLASHWINFO info = new FLASHWINFO
+            {
+                hwnd = windowHandle,
+                dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG,
+                uCount = 0,
+                dwTimeout = 0
+            };
+
+            info.cbSize = Convert.ToUInt32(Marshal.SizeOf(info));
+            FlashWindowEx(ref info);
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FLASHWINFO
+        {
+            public UInt32 cbSize;
+            public IntPtr hwnd;
+            public UInt32 dwFlags;
+            public UInt32 uCount;
+            public UInt32 dwTimeout;
+        }
 
         private static class TaskbarProgress
         {
