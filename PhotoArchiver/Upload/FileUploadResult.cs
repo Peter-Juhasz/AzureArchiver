@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace PhotoArchiver
+namespace PhotoArchiver.Upload
 {
     public class FileUploadResult
     {

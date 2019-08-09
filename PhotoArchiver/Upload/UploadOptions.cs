@@ -1,4 +1,4 @@
-﻿namespace PhotoArchiver
+﻿namespace PhotoArchiver.Upload
 {
     public class UploadOptions
     {

@@ -1,12 +1,13 @@
-﻿using PhotoArchiver.Extensions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
-namespace PhotoArchiver
+namespace PhotoArchiver.Upload
 {
+    using Extensions;
+
     public class FileUploadItem : IDisposable
     {
         public FileUploadItem(FileInfo info)

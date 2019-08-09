@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace PhotoArchiver
+namespace PhotoArchiver.Upload
 {
     public class ArchiveResult
     {

@@ -29,8 +29,9 @@ namespace PhotoArchiver
     using KeyVault;
     using Logging;
     using Progress;
-    using Update;
     using Storage;
+    using Update;
+    using Upload;
 
     class Program
     {

@@ -32,6 +32,7 @@ namespace PhotoArchiver
     using KeyVault;
     using Progress;
     using Storage;
+    using Upload;
 
     public class Archiver
     {
