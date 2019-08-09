@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,8 +18,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-using MetadataExtractor.Formats.QuickTime;
 using MetadataExtractor;
+using MetadataExtractor.Formats.QuickTime;
 
 namespace PhotoArchiver
 {
@@ -120,6 +119,7 @@ namespace PhotoArchiver
         public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
         {
             // initialize
+            ProgressIndicator.Initialize();
             var directory = new DirectoryInfo(path);
             var container = Client.GetContainerReference(StorageOptions.Container);
             var lastDirectoryName = null as string;
@@ -154,11 +154,11 @@ namespace PhotoArchiver
             var processedCount = 0;
             var count = query.Count();
 
-            ProgressIndicator.Initialize();
-
             // enumerate files in directory
             foreach (var file in query)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // display directory
                 var currentDirectoryName = file.Directory.FullName;
                 if (lastDirectoryName != currentDirectoryName)
@@ -168,40 +168,36 @@ namespace PhotoArchiver
                 }
 
                 UploadResult result = default;
-                IDictionary<string, string> metadata = new Dictionary<string, string>();
-                byte[]? hash = null;
 
                 try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
                     Logger.LogTrace($"Processing {file}...");
 
+                    using var item = new FileUploadItem(file);
+
                     // read date
-                    var date = await GetDateAsync(file);
+                    var date = await GetDateAsync(item);
                     if (date == null)
                     {
                         result = UploadResult.DateMissing;
                         results.Add(new FileUploadResult(file, result));
                         Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
                         processedCount++;
+                        ProgressIndicator.Set(processedCount, count);
                         continue;
                     }
 
                     // blob
                     var blobDirectory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
-                    metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
-                    metadata.Add("CreatedAt", date.Value.ToString("o"));
-                    metadata.Add("OriginalFileSize", file.Length.ToString());
+                    item.Metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
+                    item.Metadata.Add("CreatedAt", date.Value.ToString("o"));
+                    item.Metadata.Add("OriginalFileSize", file.Length.ToString());
 
                     // deduplicate
                     if (Options.Deduplicate)
                     {
                         Logger.LogTrace($"Computing hash for {file}...");
-                        using var hashAlgorithm = MD5.Create();
-                        using var stream = file.OpenRead();
-                        hash = hashAlgorithm.ComputeHash(stream);
-                        metadata.Add("OriginalMD5", Convert.ToBase64String(hash));
+                        var hash = await item.ComputeHashAsync();
 
                         if (await DeduplicationService.ContainsAsync(blobDirectory, hash))
                         {
@@ -214,19 +210,24 @@ namespace PhotoArchiver
                         // computer vision
                         if (ComputerVisionOptions.Value.IsEnabled())
                         {
-                            using var stream = file.OpenRead();
                             try
                             {
+                                // create thumbnail
+                                using var thumbnail = new MemoryStream(4 * 1024 * 1024);
+                                var buffer = await item.OpenReadAsync();
+                                await buffer.CopyToAsync(thumbnail);
+
+                                // describe
                                 Logger.LogTrace($"Describing {file}...");
-                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(stream);
+                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail.Rewind());
                                 CostEstimator.AddDescribe();
                                 if (description.Captions.Any())
                                 {
-                                    metadata.Add("Caption", description.Captions.OrderByDescending(c => c.Confidence).First().Text);
+                                    item.Metadata.Add("Caption", description.Captions.OrderByDescending(c => c.Confidence).First().Text);
                                 }
                                 if (description.Tags.Any())
                                 {
-                                    metadata.Add("Tags", String.Join(", ", description.Tags));
+                                    item.Metadata.Add("Tags", String.Join(", ", description.Tags));
                                 }
                             }
                             catch (ComputerVisionErrorException ex)
@@ -238,11 +239,16 @@ namespace PhotoArchiver
                         // face
                         if (FaceOptions.Value.IsEnabled())
                         {
-                            using var stream = file.OpenRead();
                             try
                             {
+                                // create thumbnail
+                                using var thumbnail = new MemoryStream(4 * 1024 * 1024);
+                                var buffer = await item.OpenReadAsync();
+                                await buffer.CopyToAsync(thumbnail);
+
+                                // detect
                                 Logger.LogTrace($"Detecing faces in {file}...");
-                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(stream, returnFaceId: true);
+                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail.Rewind(), returnFaceId: true);
                                 CostEstimator.AddFace();
                                 var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
                                 var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.Value.PersonGroupId, confidenceThreshold: FaceOptions.Value.ConfidenceThreshold);
@@ -250,7 +256,7 @@ namespace PhotoArchiver
 
                                 if (identifyResult.Any())
                                 {
-                                    metadata.Add("People", String.Join(", ", identifyResult.Select(r => r.Candidates.OrderByDescending(c => c.Confidence).First()).Select(c => c.PersonId)));
+                                    item.Metadata.Add("People", String.Join(", ", identifyResult.Select(r => r.Candidates.OrderByDescending(c => c.Confidence).First()).Select(c => c.PersonId)));
                                 }
                             }
                             catch (Exception ex)
@@ -265,7 +271,7 @@ namespace PhotoArchiver
                         var blob = blobDirectory.GetBlockBlobReference(file.Name);
 
                         // add metadata
-                        AddMetadata(blob, metadata);
+                        AddMetadata(blob, item.Metadata);
 
                         // set metadata
                         if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
@@ -274,11 +280,11 @@ namespace PhotoArchiver
                         }
 
                         // check for extistance
-                        switch (await ExistsAndCompareAsync(blob, file, hash))
+                        switch (await ExistsAndCompareAsync(blob, item))
                         {
                             // upload, if not exists
                             case null:
-                                result = await UploadCoreAsync(blob, file);
+                                result = await UploadCoreAsync(blob, item);
                                 break;
 
                             // already exists, if matches
@@ -293,30 +299,23 @@ namespace PhotoArchiver
                                     case ConflictResolution.KeepBoth:
                                         {
                                             // compute hash for new file name
-                                            if (hash == null)
-                                            {
-                                                Logger.LogTrace($"Computing hash for {file}...");
-                                                using var hashAlgorithm = MD5.Create();
-                                                using var stream = file.OpenRead();
-                                                hash = hashAlgorithm.ComputeHash(stream);
-                                                metadata.TryAdd("OriginalMD5", Convert.ToBase64String(hash));
-                                            }
-                                            var formattedHash = BitConverter.ToString(hash).Replace("-", String.Empty);
+                                            var hash = await item.ComputeHashAsync();
+                                            var formattedHash = BitConverter.ToString(hash).Replace("-", string.Empty);
 
                                             blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
 
                                             // set metadata
-                                            AddMetadata(blob, metadata);
+                                            AddMetadata(blob, item.Metadata);
                                             if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out mimeType))
                                             {
                                                 blob.Properties.ContentType = mimeType;
                                             }
 
                                             // upload with new name
-                                            switch (await ExistsAndCompareAsync(blob, file, hash))
+                                            switch (await ExistsAndCompareAsync(blob, item))
                                             {
                                                 case null:
-                                                    result = await UploadCoreAsync(blob, file);
+                                                    result = await UploadCoreAsync(blob, item);
                                                     break;
 
                                                 case false:
@@ -338,7 +337,7 @@ namespace PhotoArchiver
                                         }
 
                                         await blob.CreateSnapshotAsync(cancellationToken);
-                                        result = await UploadCoreAsync(blob, file);
+                                        result = await UploadCoreAsync(blob, item);
                                         break;
 
                                     case ConflictResolution.Overwrite:
@@ -347,7 +346,7 @@ namespace PhotoArchiver
                                             await blob.DeleteAsync(cancellationToken);
                                         }
 
-                                        result = await UploadCoreAsync(blob, file);
+                                        result = await UploadCoreAsync(blob, item);
                                         break;
 
                                     default:
@@ -371,6 +370,7 @@ namespace PhotoArchiver
                             // deduplicate
                             if (Options.Deduplicate)
                             {
+                                var hash = await item.ComputeHashAsync();
                                 DeduplicationService.Add(blobDirectory, hash);
                             }
                         }
@@ -417,7 +417,7 @@ namespace PhotoArchiver
             }
         }
 
-        private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileInfo file, byte[]? hash)
+        private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileUploadItem item)
         {
             // check for exists
             Logger.LogTrace($"Checking for {blob} exists...");
@@ -429,21 +429,14 @@ namespace PhotoArchiver
                 CostEstimator.AddOther();
 
                 // compare file size
-                if (blob.Properties.Length != file.Length)
+                if (blob.Properties.Length != item.Info.Length)
                 {
                     return false;
                 }
 
                 // compare hash
-                Logger.LogTrace($"Computing MD5 hash for {file}...");
                 var reference = Convert.FromBase64String(blob.Properties.ContentMD5);
-                if (hash == null)
-                {
-                    using var alg = MD5.Create();
-                    using var stream = file.OpenRead();
-                    hash = alg.ComputeHash(stream);
-                }
-
+                var hash = await item.ComputeHashAsync();
                 if (!reference.AsSpan().SequenceEqual(hash.AsSpan()))
                 {
                     return false;
@@ -455,10 +448,10 @@ namespace PhotoArchiver
             return null;
         }
 
-        private async Task<UploadResult> UploadCoreAsync(CloudBlockBlob blob, FileInfo file)
+        private async Task<UploadResult> UploadCoreAsync(CloudBlockBlob blob, FileUploadItem item)
         {
             // upload
-            Logger.LogTrace($"Uploading {file} to {blob}...");
+            Logger.LogTrace($"Uploading {item.Info} to {blob}...");
 
             var requestOptions = new BlobRequestOptions
             {
@@ -472,17 +465,17 @@ namespace PhotoArchiver
                 requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
             }
 
-            await blob.UploadFromFileAsync(file.FullName, AccessCondition.GenerateEmptyCondition(), requestOptions, null);
-            CostEstimator.AddWrite(file.Length);
+            await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+            CostEstimator.AddWrite(item.Info.Length);
 
             return UploadResult.Uploaded;
         }
 
-        private async Task<DateTime?> GetDateAsync(FileInfo file)
+        private async Task<DateTime?> GetDateAsync(FileUploadItem item)
         {
-            Logger.LogTrace($"Reading date for {file}...");
+            Logger.LogTrace($"Reading date for {item.Info}...");
 
-            switch (file.Extension.ToLower())
+            switch (item.Info.Extension.ToLower())
             {
                 case ".jpg":
                 case ".jpeg":
@@ -490,8 +483,7 @@ namespace PhotoArchiver
                 case ".heif":
                 case ".heic":
                     {
-                        using var stream = file.OpenRead();
-                        var metadata = ImageMetadataReader.ReadMetadata(stream);
+                        var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
                         if (tag != null)
                         {
@@ -504,8 +496,7 @@ namespace PhotoArchiver
                 case ".nef":
                 case ".dng":
                     {
-                        using var stream = file.OpenRead();
-                        var metadata = ImageMetadataReader.ReadMetadata(stream);
+                        var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
                         if (tag != null)
                         {
@@ -513,15 +504,21 @@ namespace PhotoArchiver
                         }
 
                         // fallback to JPEG
-                        var jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg"));
+                        var jpeg = new FileInfo(Path.ChangeExtension(item.Info.FullName, ".jpg"));
                         if (jpeg.Exists)
-                            return await GetDateAsync(jpeg);
-
-                        if (file.Extension.Equals(".dng", StringComparison.OrdinalIgnoreCase))
                         {
-                            jpeg = new FileInfo(Path.ChangeExtension(file.FullName, ".jpg").Replace("__highres", ""));
+                            using var item2 = new FileUploadItem(jpeg);
+                            return await GetDateAsync(item2);
+                        }
+
+                        if (item.Info.Extension.Equals(".dng", StringComparison.OrdinalIgnoreCase))
+                        {
+                            jpeg = new FileInfo(Path.ChangeExtension(item.Info.FullName, ".jpg").Replace("__highres", ""));
                             if (jpeg.Exists)
-                                return await GetDateAsync(jpeg);
+                            {
+                                using var item2 = new FileUploadItem(jpeg);
+                                return await GetDateAsync(item2);
+                            }
                         }
                     }
                     break;
@@ -529,8 +526,7 @@ namespace PhotoArchiver
                 case ".mp4":
                 case ".mov":
                     {
-                        using var stream = file.OpenRead();
-                        var metadata = QuickTimeMetadataReader.ReadMetadata(stream);
+                        var metadata = QuickTimeMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
                         if (tag != null)
                         {
@@ -544,8 +540,7 @@ namespace PhotoArchiver
 
                 case ".avi":
                     {
-                        using var stream = file.OpenRead();
-                        var date = await AviDateReader.ReadAsync(stream);
+                        var date = await AviDateReader.ReadAsync(await item.OpenReadAsync());
                         if (date != null)
                         {
                             return date;
@@ -555,13 +550,13 @@ namespace PhotoArchiver
 
                 case ".mpg":
                     {
-                        if (TryParseDate(file.Name, out var date))
+                        if (TryParseDate(item.Info.Name, out var date))
                             return date;
                     }
                     break;
             }
 
-            if (TryParseDate(file.Name, out var dt))
+            if (TryParseDate(item.Info.Name, out var dt))
                 return dt;
 
             return null;
