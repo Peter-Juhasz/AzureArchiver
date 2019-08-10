@@ -52,6 +52,10 @@ Configuration is based on the .NET Standard library and the application reads it
      - `"Overwrite"`: the existing blob gets overwritten, if it is in Archive tier, deleted and then reuploaded with the same name
      - `"SnapshotAndOverwrite"`: a snapshot is taken of the existing blob and then it gets overwritten (see `"Overwrite"` option). If the blob is in Archive tier, taking a snapshot is not possible, so it is skipped and logged as a warning.
    - `ParallelBlockCount` (default `1`): the number of blocks of a single blob that may be simultaneously uploaded ([see docs](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.storage.blob.blobrequestoptions.paralleloperationthreadcount?view=azure-dotnet))
+ - `Thumbnails` thumbnail settings
+   - `MaxWidth`: maximum width of the thumbnail images
+   - `MaxHeight`: maximum height of the thumbnail images
+   - `Container` (default `"photos-thumbnails"`): blob container to put the thumbnails to
 
 ### Configuration file
 You can persist your configuration into a file named `appsettings.json`, for example:
@@ -178,7 +182,7 @@ Requirements:
  - Visual Studio 2019 Preview
  - .NET Core SDK 2.2
 
-Place a file named `appsettings.json` into your project, at least as a placeholder. Also, set `Update:Enabled` to `false`, if you want to turn off update checks.
+Also, set `Update:Enabled` to `false`, if you want to turn off update checks.
 
 ## Troubleshooting
 
@@ -197,4 +201,5 @@ Place a file named `appsettings.json` into your project, at least as a placehold
  - [Manage blobs using Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
 
 ## Special thanks
+ - [ImageSharp](https://github.com/SixLabors/ImageSharp) library for resizing images
  - [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) library for reading metadata from videos

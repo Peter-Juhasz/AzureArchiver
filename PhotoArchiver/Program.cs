@@ -30,6 +30,7 @@ namespace PhotoArchiver
     using Logging;
     using Progress;
     using Storage;
+    using Thumbnails;
     using Update;
     using Upload;
 
@@ -39,7 +40,7 @@ namespace PhotoArchiver
         {
             // configure
             var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
                 .AddCommandLine(args)
                 .Build();
 
@@ -96,6 +97,10 @@ namespace PhotoArchiver
                 // costs
                 .Configure<CostOptions>(configuration.GetSection("Costs"))
                 .AddScoped<CostEstimator>()
+
+                // thumbnails
+                .Configure<ThumbnailOptions>(configuration.GetSection("Thumbnails"))
+                .AddSingleton<IThumbnailGenerator, SixLaborsThumbnailGenerator>()
 
                 // upload
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))

@@ -30,6 +30,7 @@ namespace PhotoArchiver
     using Face;
     using Formats;
     using KeyVault;
+    using PhotoArchiver.Thumbnails;
     using Progress;
     using Storage;
     using Upload;
@@ -39,10 +40,12 @@ namespace PhotoArchiver
         public Archiver(
             IOptions<UploadOptions> options,
             IOptions<StorageOptions> storageOptions,
+            IOptions<ThumbnailOptions> thumbnailOptions,
             IOptions<KeyVaultOptions> keyVaultOptions,
             IOptions<ComputerVisionOptions> computerVisionOptions,
             IOptions<FaceOptions> faceOptions,
             CloudBlobClient client,
+            IThumbnailGenerator thumbnailGenerator,
             IKeyResolver keyResolver,
             IDeduplicationService deduplicationService,
             IComputerVisionClient computerVisionClient,
@@ -55,9 +58,11 @@ namespace PhotoArchiver
             Options = options.Value;
             StorageOptions = storageOptions.Value;
             KeyVaultOptions = keyVaultOptions.Value;
+            ThumbnailOptions = thumbnailOptions.Value;
             ComputerVisionOptions = computerVisionOptions;
             FaceOptions = faceOptions;
             Client = client;
+            ThumbnailGenerator = thumbnailGenerator;
             KeyResolver = keyResolver;
             DeduplicationService = deduplicationService;
             ComputerVisionClient = computerVisionClient;
@@ -70,9 +75,11 @@ namespace PhotoArchiver
         protected UploadOptions Options { get; }
         protected StorageOptions StorageOptions { get; }
         protected KeyVaultOptions KeyVaultOptions { get; }
+        protected ThumbnailOptions ThumbnailOptions { get; }
         protected IOptions<ComputerVisionOptions> ComputerVisionOptions { get; }
         protected IOptions<FaceOptions> FaceOptions { get; }
         protected CloudBlobClient Client { get; }
+        protected IThumbnailGenerator ThumbnailGenerator { get; }
         protected IKeyResolver KeyResolver { get; }
         protected IDeduplicationService DeduplicationService { get; }
         protected IComputerVisionClient ComputerVisionClient { get; }
@@ -207,7 +214,7 @@ namespace PhotoArchiver
                         }
                     }
 
-                    if (file.IsCognitiveServiceCompatible())
+                    if (file.IsJpeg())
                     {
                         // computer vision
                         if (ComputerVisionOptions.Value.IsEnabled())
@@ -215,13 +222,11 @@ namespace PhotoArchiver
                             try
                             {
                                 // create thumbnail
-                                using var thumbnail = new MemoryStream(4 * 1024 * 1024);
-                                var buffer = await item.OpenReadAsync();
-                                await buffer.CopyToAsync(thumbnail);
+                                using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), 1024, 1024);
 
                                 // describe
                                 Logger.LogTrace($"Describing {file}...");
-                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail.Rewind());
+                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail);
                                 CostEstimator.AddDescribe();
                                 if (description.Captions.Any())
                                 {
@@ -244,13 +249,11 @@ namespace PhotoArchiver
                             try
                             {
                                 // create thumbnail
-                                using var thumbnail = new MemoryStream(4 * 1024 * 1024);
-                                var buffer = await item.OpenReadAsync();
-                                await buffer.CopyToAsync(thumbnail);
+                                using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), 1024, 1024);
 
                                 // detect
                                 Logger.LogTrace($"Detecing faces in {file}...");
-                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail.Rewind(), returnFaceId: true);
+                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail, returnFaceId: true);
                                 CostEstimator.AddFace();
                                 var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
                                 var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.Value.PersonGroupId, confidenceThreshold: FaceOptions.Value.ConfidenceThreshold);
@@ -375,6 +378,34 @@ namespace PhotoArchiver
                                 var hash = await item.ComputeHashAsync();
                                 DeduplicationService.Add(blobDirectory, hash);
                             }
+
+                            // thumbnail
+                            if (ThumbnailOptions.IsEnabled())
+                            {
+                                using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
+
+                                var thumbnailContainer = Client.GetContainerReference(ThumbnailOptions.Container);
+                                var thumbnailBlob = thumbnailContainer
+                                    .GetDirectoryReference(string.Format(StorageOptions.DirectoryFormat, date))
+                                    .GetBlockBlobReference(item.Info.Name);
+
+                                AddMetadata(thumbnailBlob, item.Metadata);
+
+                                try
+                                {
+                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                }
+                                catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
+                                {
+                                    await thumbnailContainer.CreateIfNotExistsAsync();
+                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                }
+                                catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
+                                {
+                                    await thumbnailBlob.DeleteIfExistsAsync();
+                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                }
+                            }
                         }
                     }
 
@@ -467,7 +498,16 @@ namespace PhotoArchiver
                 requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
             }
 
-            await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+
+            try
+            {
+                await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+            }
+            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
+            {
+                await blob.Container.CreateIfNotExistsAsync();
+                await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+            }
             CostEstimator.AddWrite(item.Info.Length);
 
             return UploadResult.Uploaded;
