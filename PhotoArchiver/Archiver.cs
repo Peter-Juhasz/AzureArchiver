@@ -388,7 +388,7 @@ namespace PhotoArchiver
                                 var thumbnailBlob = thumbnailContainer
                                     .GetDirectoryReference(string.Format(StorageOptions.DirectoryFormat, date))
                                     .GetBlockBlobReference(item.Info.Name);
-
+                                thumbnailBlob.Properties.ContentType = "image/jpeg";
                                 AddMetadata(thumbnailBlob, item.Metadata);
 
                                 try
