@@ -25,6 +25,7 @@ namespace PhotoArchiver
     using ComputerVision;
     using Costs;
     using Deduplication;
+    using Download;
     using Face;
     using KeyVault;
     using Logging;
@@ -106,7 +107,10 @@ namespace PhotoArchiver
                 .Configure<UploadOptions>(configuration.GetSection("Upload"))
                 .AddScoped<Archiver>()
                 .AddScoped<IDeduplicationService, DeduplicationService>()
-                
+
+                // download
+                .Configure<DownloadOptions>(configuration.GetSection("Download"))
+
                 // update
                 .Configure<UpdateOptions>(configuration.GetSection("Update"))
                 .AddSingleton<IUpdateService, GitHubUpdateService>()
@@ -137,6 +141,8 @@ namespace PhotoArchiver
             var options = provider.GetRequiredService<IOptions<UploadOptions>>().Value;
             var storageOptions = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
             var costOptions = provider.GetRequiredService<IOptions<CostOptions>>().Value;
+            var uploadOptions = provider.GetRequiredService<IOptions<UploadOptions>>().Value;
+            var downloadOptions = provider.GetRequiredService<IOptions<DownloadOptions>>().Value;
             var client = provider.GetRequiredService<CloudBlobClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
@@ -158,24 +164,50 @@ namespace PhotoArchiver
                 costEstimator.AddListOrCreateContainer();
             }
 
-            // start
             var watch = Stopwatch.StartNew();
-            var result = await archiver.ArchiveAsync(options.Path!, default);
-            watch.Stop();
 
-            // summarize results
-            logger.LogInformation("----------------------------------------------------------------");
-
-            var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
-            var failed = result.Results.Where(r => !r.Result.IsSuccessful());
-
-            logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {failed.Count()} failed");
-            logger.LogInformation($"Time elapsed: {watch.Elapsed}");
-            if (failed.Any())
+            // upload
+            if (uploadOptions.IsEnabled())
             {
-                logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
+                var result = await archiver.ArchiveAsync(options.Path!, default);
+                watch.Stop();
+
+                // summarize results
+                logger.LogInformation("----------------------------------------------------------------");
+
+                var succeeded = result.Results.Where(r => r.Result.IsSuccessful());
+                var failed = result.Results.Where(r => !r.Result.IsSuccessful());
+
+                logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {failed.Count()} failed");
+                logger.LogInformation($"Time elapsed: {watch.Elapsed}");
+                if (failed.Any())
+                {
+                    logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
+                }
             }
 
+            // download
+            else if (downloadOptions.IsEnabled())
+            {
+                var result = await archiver.RetrieveAsync(downloadOptions, default);
+                watch.Stop();
+
+                // summarize results
+                logger.LogInformation("----------------------------------------------------------------");
+
+                var succeeded = result.Results.Where(r => r.Result == DownloadResult.Succeeded);
+                var pending = result.Results.Where(r => r.Result == DownloadResult.Pending);
+                var failed = result.Results.Where(r => r.Result == DownloadResult.Failed);
+
+                logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {pending.Count()} pending, {failed.Count()} failed");
+                logger.LogInformation($"Time elapsed: {watch.Elapsed}");
+                if (failed.Any())
+                {
+                    logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                }
+            }
+
+            // usage summary
             logger.LogInformation($"Usage summary:");
             logger.LogInformation(String.Join(Environment.NewLine, costEstimator.SummarizeUsage().Select(t => $"{t.item.PadRight(48, ' ')}\t{t.amount:N0}")));
 

@@ -29,10 +29,14 @@ You can also save your credentials to a configuration file. See below.
 Configuration is based on the .NET Standard library and the application reads it from JSON file and/or command-line arguments.
 
 ### Basic
+You have to choose between `Upload` and `Download`:
  - `Storage` properties of Storage Account
    - **`ConnectionString`**: the connection string for your Azure Storage
  - `Upload` upload settings
    - **`Path`**: the directory to upload the files from
+ - `Download` download settings
+   - **`Path`**: the directory to download the blobs to
+   - **`Date`**: the creation date of the media to download
 
 ### Advanced
  - `Storage` properties of Storage Account
@@ -58,6 +62,14 @@ Configuration is based on the .NET Standard library and the application reads it
    - `MaxHeight`: maximum height of the thumbnail images
    - `Quality` (default `0.50`): quality of JPEG compression (0-1: min-max quality)
    - `Container` (default `"photos-thumbnails"`): blob container to put the thumbnails to
+ - `Download` download settings
+   - **`Path`**: the directory to download the blobs to
+   - **`Date`** (or `StartDate` and `EndDate`): the creation date of the media to download
+   - `StartDate`: the earliest creation date of the media to download
+   - `EndDate`: the latest creation date of the media to download
+   - `Tags`: filter by tags (tagged by Computer Vision)
+   - `People`: filter by IDs of people (tagged by Face API)
+   - `RehydrationTier` (default `"Hot"`): rehydrate archived blobs to this tier temporarily for download
 
 ### Configuration file
 You can persist your configuration into a file named `appsettings.json`, for example:
@@ -111,6 +123,7 @@ Configuration:
    - `GRSDataTransferPricePerGB`: leave it empty if your Storage Account is not geo-replicated
    - `KeyVaultTransactionPricePer10000`: leave it empty if you don't use Key Vault
    - `ComputerVisionDescribeTransactionPricePer1000`: leave if empty if you don't use Computer Vision
+   - `OutboundDataTransferPricePerGB`
 
 ### Tagging and caption generation 
 Generates a caption and tags for each photo based on their visual content using [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) and saves them to metadata.
