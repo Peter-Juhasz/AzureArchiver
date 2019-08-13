@@ -30,9 +30,9 @@ namespace PhotoArchiver
     using Face;
     using Formats;
     using KeyVault;
-    using PhotoArchiver.Thumbnails;
     using Progress;
     using Storage;
+    using Thumbnails;
     using Upload;
 
     public class Archiver
@@ -380,7 +380,7 @@ namespace PhotoArchiver
                             }
 
                             // thumbnail
-                            if (ThumbnailOptions.IsEnabled())
+                            if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled())
                             {
                                 using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
 
@@ -398,12 +398,12 @@ namespace PhotoArchiver
                                 catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
                                 {
                                     await thumbnailContainer.CreateIfNotExistsAsync();
-                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
                                 }
                                 catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
                                 {
                                     await thumbnailBlob.DeleteIfExistsAsync();
-                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
                                 }
                             }
                         }
@@ -497,7 +497,6 @@ namespace PhotoArchiver
             {
                 requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
             }
-
 
             try
             {
