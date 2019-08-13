@@ -18,6 +18,8 @@ namespace PhotoArchiver.Costs
         public decimal? ComputerVisionDescribeTransactionPricePer1000 { get; set; }
         public decimal? FaceTransactionPricePer1000 { get; set; }
 
+        public decimal? OutboundDataTransferPricePerGB { get; set; }
+
 
         public bool IsAnySet() => typeof(CostOptions).GetProperties().Any(p => p.GetValue(this) != null);
     }

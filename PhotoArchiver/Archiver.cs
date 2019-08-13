@@ -26,12 +26,14 @@ namespace PhotoArchiver
     using ComputerVision;
     using Costs;
     using Deduplication;
+    using Download;
     using Extensions;
     using Face;
     using Formats;
     using KeyVault;
     using Progress;
     using Storage;
+    using System.ComponentModel;
     using Thumbnails;
     using Upload;
 
@@ -451,6 +453,135 @@ namespace PhotoArchiver
             ProgressIndicator.Finished();
 
             return new ArchiveResult(results);
+        }
+
+        public async Task<RetrieveResult> RetrieveAsync(DownloadOptions options, CancellationToken cancellationToken)
+        {
+            // initialize
+            ProgressIndicator.Indeterminate();
+
+            var container = Client.GetContainerReference(StorageOptions.Container);
+
+            if (KeyVaultOptions.IsEnabled())
+            {
+                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
+            }
+
+            var results = new List<BlobDownloadResult>();
+
+            // collect blobs to download
+            var all = new List<CloudBlockBlob>();
+            for (var date = options.StartDate!.Value; date <= options.EndDate!.Value; date = date.AddDays(1))
+            {
+                Logger.LogTrace($"Listing blobs by date '{date}'...");
+                CostEstimator.AddListOrCreateContainer();
+
+                var directory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
+
+                BlobContinuationToken? continuationToken = null;
+                do
+                {
+                    var page = await directory.ListBlobsSegmentedAsync(
+                        useFlatBlobListing: true,
+                        BlobListingDetails.Metadata,
+                        maxResults: null,
+                        continuationToken,
+                        null,
+                        null
+                    );
+
+                    var matching = page.Results.OfType<CloudBlockBlob>().Where(b => Match(b, options));
+                    all.AddRange(matching);
+
+                    continuationToken = page.ContinuationToken;
+                } while (continuationToken != null);
+            }
+
+            // download
+            var processedCount = 0;
+            ProgressIndicator.Set(processedCount, all.Count);
+            foreach (var blob in all)
+            {
+                try
+                {
+                    // rehydrate archived blob
+                    if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
+                    {
+                        Logger.LogInformation($"Rehydrate '{blob}'...");
+                        await blob.SetStandardBlobTierAsync(options.RehydrationTier);
+                        CostEstimator.AddRead();
+                        CostEstimator.AddWrite();
+
+                        processedCount++;
+                        ProgressIndicator.Set(processedCount, all.Count);
+                        continue;
+                    }
+
+                    // otherwise, download
+                    var path = Path.Combine(options.Path, blob.Name);
+                    var requestOptions = new BlobRequestOptions
+                    {
+                        LocationMode = LocationMode.PrimaryThenSecondary,
+                        DisableContentMD5Validation = false,
+                    };
+
+                    if (blob.Metadata.ContainsKey("encryptiondata"))
+                    {
+                        requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
+                    }
+
+                    await blob.DownloadToFileAsync(
+                        path,
+                        FileMode.CreateNew,
+                        AccessCondition.GenerateEmptyCondition(),
+                        requestOptions,
+                        null,
+                        cancellationToken
+                    );
+                    CostEstimator.AddRead(blob.Properties.Length);
+                }
+                catch (StorageException ex)
+                {
+                    Logger.LogError(ex, ex.Message);
+                }
+                finally
+                {
+                    processedCount++;
+                    ProgressIndicator.Set(processedCount, all.Count);
+                }
+            }
+
+            ProgressIndicator.Finished();
+            return new RetrieveResult(results);
+        }
+
+        private bool Match(CloudBlockBlob blob, DownloadOptions options)
+        {
+            if (options.Tags?.Any() ?? false)
+            {
+                if (blob.Metadata.TryGetValue("Tags", out var tags))
+                {
+                    return options.Tags.Any(t => tags.Split(',').Select(t2 => t2.Trim()).Contains(t));
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            if (options.People?.Any() ?? false)
+            {
+                if (blob.Metadata.TryGetValue("People", out var people))
+                {
+                    return options.People.Any(t => people.Split(',').Select(t2 => t2.Trim()).Contains(t));
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static void AddMetadata(CloudBlockBlob blob, IDictionary<string, string> metadata)

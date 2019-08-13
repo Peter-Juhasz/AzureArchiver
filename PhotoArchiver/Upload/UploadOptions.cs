@@ -23,6 +23,9 @@ namespace PhotoArchiver.Upload
         public int? ParallelBlockCount { get; set; }
 
 
+        public bool IsEnabled() => Path != null;
+
+
         public void Validate()
         {
             if (Skip < 0)

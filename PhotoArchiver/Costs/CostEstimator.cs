@@ -23,6 +23,12 @@ namespace PhotoArchiver.Costs
 
         public void AddRead() => Reads++;
 
+        public void AddRead(long bytes)
+        {
+            AddRead();
+            AddBytesRead(bytes);
+        }
+
 
         public int Writes { get; private set; } = 0;
 
@@ -31,7 +37,7 @@ namespace PhotoArchiver.Costs
         public void AddWrite(long bytes)
         {
             AddWrite();
-            AddBytes(bytes);
+            AddBytesWritten(bytes);
         }
 
 
@@ -45,9 +51,9 @@ namespace PhotoArchiver.Costs
         public void AddListOrCreateContainer() => ListOrCreateContainers++;
 
 
-        public long Bytes { get; private set; } = 0;
+        public long BytesWritten { get; private set; } = 0;
 
-        public void AddBytes(long bytes) => Bytes += bytes;
+        public void AddBytesWritten(long bytes) => BytesWritten += bytes;
 
 
         public int KeyVaultOperations { get; private set; } = 0;
@@ -65,11 +71,16 @@ namespace PhotoArchiver.Costs
         public void AddFace() => FaceTransactions++;
 
 
+        public long BytesRead { get; private set; } = 0;
+
+        public void AddBytesRead(long bytes) => BytesRead += bytes;
+
+
         public IEnumerable<(string item, long amount)> SummarizeUsage()
         {
-            if (Bytes > 0)
+            if (BytesWritten > 0)
             {
-                yield return ("Bytes transferred", Bytes);
+                yield return ("Bytes transferred", BytesWritten);
             }
 
             if (ListOrCreateContainers > 0)
@@ -110,9 +121,9 @@ namespace PhotoArchiver.Costs
 
         public IEnumerable<(string item, decimal cost)> SummarizeCosts()
         {
-            if (Bytes > 0 && CostOptions.DataStoragePricePerGB != null)
+            if (BytesWritten > 0 && CostOptions.DataStoragePricePerGB != null)
             {
-                yield return ("Data Storage (monthly)", (decimal)Bytes / GB * CostOptions.DataStoragePricePerGB.Value);
+                yield return ("Data Storage (monthly)", (decimal)BytesWritten / GB * CostOptions.DataStoragePricePerGB.Value);
             }
 
             if (ListOrCreateContainers > 0 && CostOptions.ListOrCreateContainerPricePer10000 != null)
@@ -150,9 +161,14 @@ namespace PhotoArchiver.Costs
                 yield return ("Other operations (one time)", Others / 10000M * CostOptions.OtherPricePer10000.Value);
             }
 
-            if (Bytes > 0 && CostOptions.GRSDataTransferPricePerGB != null)
+            if (BytesRead > 0 && CostOptions.OutboundDataTransferPricePerGB != null)
             {
-                yield return ("Geo-Redundancy Data Transfer (one time)", (decimal)Bytes / GB * CostOptions.GRSDataTransferPricePerGB.Value);
+                yield return ("Outbound Data Transfer (one time)", (decimal)BytesRead / GB * CostOptions.OutboundDataTransferPricePerGB.Value);
+            }
+
+            if (BytesWritten > 0 && CostOptions.GRSDataTransferPricePerGB != null)
+            {
+                yield return ("Geo-Redundancy Data Transfer (one time)", (decimal)BytesWritten / GB * CostOptions.GRSDataTransferPricePerGB.Value);
             }
         }
     }
