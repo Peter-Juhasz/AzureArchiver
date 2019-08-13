@@ -55,6 +55,7 @@ Configuration is based on the .NET Standard library and the application reads it
  - `Thumbnails` thumbnail settings
    - `MaxWidth`: maximum width of the thumbnail images
    - `MaxHeight`: maximum height of the thumbnail images
+   - `Quality` (default `0.50`): quality of JPEG compression (0-1: min-max quality)
    - `Container` (default `"photos-thumbnails"`): blob container to put the thumbnails to
 
 ### Configuration file
