@@ -189,21 +189,43 @@ namespace PhotoArchiver
             // download
             else if (downloadOptions.IsEnabled())
             {
-                var result = await archiver.RetrieveAsync(downloadOptions, default);
-                watch.Stop();
-
-                // summarize results
-                logger.LogInformation("----------------------------------------------------------------");
-
-                var succeeded = result.Results.Where(r => r.Result == DownloadResult.Succeeded);
-                var pending = result.Results.Where(r => r.Result == DownloadResult.Pending);
-                var failed = result.Results.Where(r => r.Result == DownloadResult.Failed);
-
-                logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {pending.Count()} pending, {failed.Count()} failed");
-                logger.LogInformation($"Time elapsed: {watch.Elapsed}");
-                if (failed.Any())
+                if (downloadOptions.Continue)
                 {
-                    logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                    var result = await archiver.ContinueAsync(default);
+                    watch.Stop();
+
+                    // summarize results
+                    logger.LogInformation("----------------------------------------------------------------");
+
+                    var succeeded = result.Results.Where(r => r.Result == DownloadResult.Succeeded);
+                    var pending = result.Results.Where(r => r.Result == DownloadResult.Pending);
+                    var failed = result.Results.Where(r => r.Result == DownloadResult.Failed);
+
+                    logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {pending.Count()} pending, {failed.Count()} failed");
+                    logger.LogInformation($"Time elapsed: {watch.Elapsed}");
+                    if (failed.Any())
+                    {
+                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                    }
+                }
+                else
+                {
+                    var result = await archiver.RetrieveAsync(downloadOptions, default);
+                    watch.Stop();
+
+                    // summarize results
+                    logger.LogInformation("----------------------------------------------------------------");
+
+                    var succeeded = result.Results.Where(r => r.Result == DownloadResult.Succeeded);
+                    var pending = result.Results.Where(r => r.Result == DownloadResult.Pending);
+                    var failed = result.Results.Where(r => r.Result == DownloadResult.Failed);
+
+                    logger.LogInformation($"Summary: {succeeded.Count()} succeeded, {pending.Count()} pending, {failed.Count()} failed");
+                    logger.LogInformation($"Time elapsed: {watch.Elapsed}");
+                    if (failed.Any())
+                    {
+                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                    }
                 }
             }
 

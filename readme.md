@@ -13,6 +13,9 @@ Requirements:
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
 
+### Upload files to storage
+For basic usage, you have to specify only the path to the folder to upload and the connection string to your storage account.
+
 Run on Windows:
 ```ps
 .\PhotoArchiver.exe --Upload:Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
@@ -25,20 +28,22 @@ dotnet PhotoArchiver.dll --Upload:Path="D:\OneDrive\Camera Roll" --Storage:Conne
 
 You can also save your credentials to a configuration file. See below.
 
+### Download blobs
+Start download of blobs that are immediately accessible. Archived blobs will be rehydrated.
+
+```ps
+.\PhotoArchiver.exe --Download:Date "2019-08-14" --Download:Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
+```
+
+You may see that your archived blobs are not accessible right now and they are beign rehydrated. In that case, check back after 12 hours and continue:
+
+```ps
+.\PhotoArchiver.exe --Download:Continue true
+```
+
 ## Configuration
 Configuration is based on the .NET Standard library and the application reads it from JSON file and/or command-line arguments.
 
-### Basic
-You have to choose between `Upload` and `Download`:
- - `Storage` properties of Storage Account
-   - **`ConnectionString`**: the connection string for your Azure Storage
- - `Upload` upload settings
-   - **`Path`**: the directory to upload the files from
- - `Download` download settings
-   - **`Path`**: the directory to download the blobs to
-   - **`Date`**: the creation date of the media to download
-
-### Advanced
  - `Storage` properties of Storage Account
    - **`ConnectionString`**: the connection string for your Azure Storage
    - `Container` (default `"photos"`): the name of the container to upload files to

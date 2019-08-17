@@ -8,6 +8,8 @@ namespace PhotoArchiver.Download
     {
         public string? Path { get; set; }
 
+        public DateTime? Date { get; set; }
+
         public DateTime? StartDate { get; set; }
 
         public DateTime? EndDate { get; set; }
@@ -18,7 +20,9 @@ namespace PhotoArchiver.Download
 
         public StandardBlobTier RehydrationTier { get; set; } = StandardBlobTier.Hot;
 
+        public bool Continue { get; set; }
 
-        public bool IsEnabled() => Path != null && StartDate != null && EndDate != null;
+
+        public bool IsEnabled() => ((StartDate != null && EndDate != null) || Date != null) || Continue;
     }
 }
