@@ -1,4 +1,6 @@
-﻿namespace PhotoArchiver.Thumbnails
+﻿using System;
+
+namespace PhotoArchiver.Thumbnails
 {
     public class ThumbnailOptions
     {
@@ -12,5 +14,24 @@
 
 
         public bool IsEnabled() => MaxWidth != null && MaxHeight != null;
+
+
+        public void Validate()
+        {
+            if (MaxWidth <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaxWidth));
+            }
+
+            if (MaxHeight <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaxHeight));
+            }
+
+            if (Quality < 0 || Quality > 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(Quality));
+            }
+        }
     }
 }

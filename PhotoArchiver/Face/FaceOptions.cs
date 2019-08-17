@@ -14,5 +14,14 @@ namespace PhotoArchiver.Face
 
 
         public bool IsEnabled() => Key != null;
+
+
+        public void Validate()
+        {
+            if (ConfidenceThreshold < 0 || ConfidenceThreshold > 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(ConfidenceThreshold));
+            }
+        }
     }
 }

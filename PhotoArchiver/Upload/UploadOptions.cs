@@ -1,4 +1,6 @@
-﻿namespace PhotoArchiver.Upload
+﻿using System;
+
+namespace PhotoArchiver.Upload
 {
     public class UploadOptions
     {
@@ -19,5 +21,24 @@
         public bool Deduplicate { get; set; } = false;
 
         public int? ParallelBlockCount { get; set; }
+
+
+        public void Validate()
+        {
+            if (Skip < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(Skip));
+            }
+
+            if (Take < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(Take));
+            }
+
+            if (ParallelBlockCount < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(ParallelBlockCount));
+            }
+        }
     }
 }

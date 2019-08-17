@@ -59,8 +59,8 @@ namespace PhotoArchiver
             StorageOptions = storageOptions.Value;
             KeyVaultOptions = keyVaultOptions.Value;
             ThumbnailOptions = thumbnailOptions.Value;
-            ComputerVisionOptions = computerVisionOptions;
-            FaceOptions = faceOptions;
+            ComputerVisionOptions = computerVisionOptions.Value;
+            FaceOptions = faceOptions.Value;
             Client = client;
             ThumbnailGenerator = thumbnailGenerator;
             KeyResolver = keyResolver;
@@ -76,8 +76,8 @@ namespace PhotoArchiver
         protected StorageOptions StorageOptions { get; }
         protected KeyVaultOptions KeyVaultOptions { get; }
         protected ThumbnailOptions ThumbnailOptions { get; }
-        protected IOptions<ComputerVisionOptions> ComputerVisionOptions { get; }
-        protected IOptions<FaceOptions> FaceOptions { get; }
+        protected ComputerVisionOptions ComputerVisionOptions { get; }
+        protected FaceOptions FaceOptions { get; }
         protected CloudBlobClient Client { get; }
         protected IThumbnailGenerator ThumbnailGenerator { get; }
         protected IKeyResolver KeyResolver { get; }
@@ -217,7 +217,7 @@ namespace PhotoArchiver
                     if (file.IsJpeg())
                     {
                         // computer vision
-                        if (ComputerVisionOptions.Value.IsEnabled())
+                        if (ComputerVisionOptions.IsEnabled())
                         {
                             try
                             {
@@ -244,7 +244,7 @@ namespace PhotoArchiver
                         }
 
                         // face
-                        if (FaceOptions.Value.IsEnabled())
+                        if (FaceOptions.IsEnabled())
                         {
                             try
                             {
@@ -256,7 +256,7 @@ namespace PhotoArchiver
                                 var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail, returnFaceId: true);
                                 CostEstimator.AddFace();
                                 var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
-                                var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.Value.PersonGroupId, confidenceThreshold: FaceOptions.Value.ConfidenceThreshold);
+                                var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.PersonGroupId, confidenceThreshold: FaceOptions.ConfidenceThreshold);
                                 CostEstimator.AddFace();
 
                                 if (identifyResult.Any())
