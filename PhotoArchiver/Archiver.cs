@@ -364,6 +364,17 @@ namespace PhotoArchiver
 
                         if (result.IsSuccessful())
                         {
+                            // verify
+                            if (Options.Verify && !KeyVaultOptions.IsEnabled())
+                            {
+                                var hash = await item.ComputeHashAsync();
+                                var b64 = Convert.ToBase64String(hash);
+                                if (blob.Properties.ContentMD5 != b64)
+                                {
+                                    throw new VerificationFailedException(item.Info, blob);
+                                }
+                            }
+
                             // archive
                             if (StorageOptions.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
                             {
@@ -409,9 +420,9 @@ namespace PhotoArchiver
                         }
                     }
 
-                    // delete
                     if (result.IsSuccessful())
                     {
+                        // delete
                         if (Options.Delete)
                         {
                             Logger.LogTrace($"Deleting {file}...");
