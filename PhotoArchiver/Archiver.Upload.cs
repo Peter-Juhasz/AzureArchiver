@@ -315,16 +315,20 @@ namespace PhotoArchiver
                             try
                             {
                                 await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                CostEstimator.AddWrite(thumbnail.Length);
                             }
                             catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
                             {
                                 await thumbnailContainer.CreateIfNotExistsAsync();
+                                CostEstimator.AddListOrCreateContainer();
                                 await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                                CostEstimator.AddWrite(thumbnail.Length);
                             }
                             catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
                             {
                                 await thumbnailBlob.DeleteIfExistsAsync();
                                 await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                                CostEstimator.AddWrite(thumbnail.Length);
                             }
                         }
 
