@@ -179,10 +179,10 @@ namespace PhotoArchiver
                         }
                     }
 
+                    var blob = blobDirectory.GetBlockBlobReference(file.Name);
+
                     if (result != UploadResult.AlreadyExists)
                     {
-                        var blob = blobDirectory.GetBlockBlobReference(file.Name);
-
                         // add metadata
                         AddMetadata(blob, item.Metadata);
 
@@ -297,39 +297,37 @@ namespace PhotoArchiver
                                 var hash = await item.ComputeHashAsync();
                                 DeduplicationService.Add(blobDirectory, hash);
                             }
-
-                            // thumbnail
-                            if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled())
-                            {
-                                using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
-
-                                var thumbnailContainer = Client.GetContainerReference(ThumbnailOptions.Container);
-                                var thumbnailBlob = thumbnailContainer
-                                    .GetDirectoryReference(string.Format(StorageOptions.DirectoryFormat, date))
-                                    .GetBlockBlobReference(item.Info.Name);
-                                thumbnailBlob.Properties.ContentType = "image/jpeg";
-                                AddMetadata(thumbnailBlob, item.Metadata);
-
-                                try
-                                {
-                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail);
-                                }
-                                catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
-                                {
-                                    await thumbnailContainer.CreateIfNotExistsAsync();
-                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
-                                }
-                                catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
-                                {
-                                    await thumbnailBlob.DeleteIfExistsAsync();
-                                    await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
-                                }
-                            }
                         }
                     }
 
                     if (result.IsSuccessful())
                     {
+                        // thumbnail
+                        if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled() && (result == UploadResult.Uploaded || ThumbnailOptions.Force))
+                        {
+                            using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
+
+                            var thumbnailContainer = Client.GetContainerReference(ThumbnailOptions.Container);
+                            var thumbnailBlob = thumbnailContainer.GetBlockBlobReference(blob.Name);
+                            thumbnailBlob.Properties.ContentType = "image/jpeg";
+                            AddMetadata(thumbnailBlob, item.Metadata);
+
+                            try
+                            {
+                                await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                            }
+                            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
+                            {
+                                await thumbnailContainer.CreateIfNotExistsAsync();
+                                await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                            }
+                            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
+                            {
+                                await thumbnailBlob.DeleteIfExistsAsync();
+                                await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                            }
+                        }
+
                         // delete
                         if (Options.Delete)
                         {

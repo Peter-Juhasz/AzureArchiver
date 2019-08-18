@@ -60,7 +60,7 @@ namespace PhotoArchiver
                     }
 
                     // download
-                    var path = Path.Combine(options.Path, blob.Name);
+                    var path = Path.Combine(options.Path, Path.GetFileName(blob.Name));
                     result = await DownloadCoreAsync(path, blob, cancellationToken);
                 }
                 catch (StorageException ex)

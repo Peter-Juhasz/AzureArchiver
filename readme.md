@@ -67,6 +67,7 @@ Configuration is based on the .NET Standard library and the application reads it
    - `MaxHeight`: maximum height of the thumbnail images
    - `Quality` (default `0.50`): quality of JPEG compression (0-1: min-max quality)
    - `Container` (default `"photos-thumbnails"`): blob container to put the thumbnails to
+   - `Force` (default `false`): create thumbnails for existing blobs
  - `Download` download settings
    - **`Path`**: the directory to download the blobs to
    - **`Date`** (or `StartDate` and `EndDate`): the creation date of the media to download

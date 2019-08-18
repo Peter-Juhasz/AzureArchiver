@@ -12,6 +12,8 @@ namespace PhotoArchiver.Thumbnails
 
         public string Container { get; set; } = "photos-thumbnails";
 
+        public bool Force { get; set; } = false;
+
 
         public bool IsEnabled() => MaxWidth != null && MaxHeight != null;
 
