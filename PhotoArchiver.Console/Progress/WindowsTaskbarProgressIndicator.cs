@@ -9,11 +9,11 @@ namespace PhotoArchiver.Progress
         {
             // the output of the app is streamed to a console, so we can't use the process' main window handle
             // HACK: we make the window identifyable, find it, then revert its title
-            var originalTitle = Console.Title;
+            var originalTitle = System.Console.Title;
             var reference = Guid.NewGuid().ToString();
-            Console.Title = reference;
+            System.Console.Title = reference;
             WindowHandle = FindWindowByCaption(IntPtr.Zero, reference);
-            Console.Title = originalTitle;
+            System.Console.Title = originalTitle;
         }
 
         protected IntPtr WindowHandle { get; }

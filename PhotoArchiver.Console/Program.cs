@@ -20,7 +20,7 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
-namespace PhotoArchiver
+namespace PhotoArchiver.Console
 {
     using ComputerVision;
     using Costs;

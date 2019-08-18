@@ -15,7 +15,7 @@ namespace PhotoArchiver.Formats
         public static async Task<DateTime?> ReadAsync(Stream stream)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(4096);
-            await stream.ReadAsync(buffer);
+            await stream.ReadAsync(buffer, 0, (int)stream.Length);
 
             var idx = buffer.AsSpan().IndexOf(IDIT);
             if (idx == -1)
@@ -25,7 +25,7 @@ namespace PhotoArchiver.Formats
             if (end == -1)
                 return null;
 
-            var value = Encoding.ASCII.GetString(buffer.AsSpan(idx + IDIT.Length + 4, end));
+            var value = Encoding.ASCII.GetString(buffer.AsSpan(idx + IDIT.Length + 4, end).ToArray());
 
             if (DateTime.TryParseExact(value, WellKnownDateTimeFormats.Riff, CultureInfo.CurrentCulture, default, out var result))
                 return result;

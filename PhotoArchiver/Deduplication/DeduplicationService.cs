@@ -34,7 +34,7 @@ namespace PhotoArchiver.Deduplication
         public void Add(CloudBlobDirectory directory, ReadOnlySpan<byte> hash)
         {
             var key = directory.Uri.ToString();
-            var encoded = Convert.ToBase64String(hash);
+            var encoded = Convert.ToBase64String(hash.ToArray());
             Store[key].Add(encoded);
         }
 

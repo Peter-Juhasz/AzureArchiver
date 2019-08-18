@@ -1,6 +1,6 @@
 ﻿namespace PhotoArchiver.Progress
 {
-    internal class NullProgressIndicator : IProgressIndicator
+    public class NullProgressIndicator : IProgressIndicator
     {
         public void Error()
         {
