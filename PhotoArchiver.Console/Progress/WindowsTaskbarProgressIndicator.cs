@@ -28,7 +28,7 @@ namespace PhotoArchiver.Progress
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Indeterminate);
         }
 
-        public void Set(int processed, int all)
+        public void Set(long processed, long all)
         {
             if (processed < 0)
             {
@@ -147,7 +147,7 @@ namespace PhotoArchiver.Progress
                 taskbarInstance.SetProgressState(windowHandle, taskbarState);
             }
 
-            public static void SetValue(IntPtr windowHandle, double progressValue, double progressMax)
+            public static void SetValue(IntPtr windowHandle, long progressValue, long progressMax)
             {
                 taskbarInstance.SetProgressValue(windowHandle, (ulong)progressValue, (ulong)progressMax);
             }

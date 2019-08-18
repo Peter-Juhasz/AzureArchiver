@@ -6,7 +6,7 @@
 
         void Indeterminate();
 
-        void Set(int processed, int all);
+        void Set(long processed, long all);
 
         void Finished();
 

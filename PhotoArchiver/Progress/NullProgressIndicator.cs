@@ -18,7 +18,7 @@
         {
         }
 
-        public void Set(int processed, int all)
+        public void Set(long processed, long all)
         {
         }
     }

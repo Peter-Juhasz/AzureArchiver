@@ -69,9 +69,12 @@ namespace PhotoArchiver
             // estimate count
             var processedCount = 0;
             var count = query.Count();
+            var processedBytes = 0L;
+            var allBytes = query.Sum(f => f.Length);
 
             // enumerate files in directory
             ProgressIndicator.Initialize();
+            ProgressIndicator.Set(processedBytes, allBytes);
             foreach (var file in query)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -84,13 +87,12 @@ namespace PhotoArchiver
                     lastDirectoryName = currentDirectoryName;
                 }
 
+                using var item = new FileUploadItem(file);
                 UploadResult result = default;
 
                 try
                 {
                     Logger.LogTrace($"Processing {file}...");
-
-                    using var item = new FileUploadItem(file);
 
                     // read date
                     var date = await GetDateAsync(item);
@@ -100,7 +102,8 @@ namespace PhotoArchiver
                         results.Add(new FileUploadResult(file, result));
                         Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
                         processedCount++;
-                        ProgressIndicator.Set(processedCount, count);
+                        processedBytes += item.Info.Length;
+                        ProgressIndicator.Set(processedBytes, allBytes);
                         continue;
                     }
 
@@ -354,7 +357,8 @@ namespace PhotoArchiver
                 finally
                 {
                     processedCount++;
-                    ProgressIndicator.Set(processedCount, count);
+                    processedBytes += item.Info.Length;
+                    ProgressIndicator.Set(processedBytes, allBytes);
                 }
             }
 

@@ -39,6 +39,7 @@ namespace PhotoArchiver
 
             // download
             var processedCount = 0;
+            ProgressIndicator.Initialize();
             ProgressIndicator.Set(processedCount, all.Count);
             foreach (var blob in all)
             {
@@ -125,6 +126,7 @@ namespace PhotoArchiver
 
             var results = new List<BlobDownloadResult>();
 
+            ProgressIndicator.Initialize();
             foreach (var sessionFile in new DirectoryInfo("Sessions").GetFiles())
             {
                 // read state
