@@ -20,7 +20,11 @@ namespace PhotoArchiver.Download
 
         public StandardBlobTier RehydrationTier { get; set; } = StandardBlobTier.Hot;
 
-        public bool Continue { get; set; }
+        public bool Verify { get; set; } = false;
+
+
+        public bool Continue { get; set; } = false;
+
 
 
         public bool IsEnabled() => ((StartDate != null && EndDate != null) || Date != null) || Continue;

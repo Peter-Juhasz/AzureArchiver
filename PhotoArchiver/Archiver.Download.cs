@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,7 +63,7 @@ namespace PhotoArchiver
 
                     // download
                     var path = Path.Combine(options.Path, Path.GetFileName(blob.Name));
-                    result = await DownloadCoreAsync(path, blob, cancellationToken);
+                    result = await DownloadCoreAsync(path, blob, Options.Verify, cancellationToken);
                 }
                 catch (StorageException ex)
                 {
@@ -148,7 +149,7 @@ namespace PhotoArchiver
                     try
                     {
                         // download
-                        result = await DownloadCoreAsync(path, blob, cancellationToken);
+                        result = await DownloadCoreAsync(path, blob, Options.Verify, cancellationToken);
 
                         // archive
                         if (StorageOptions.Archive)
@@ -188,7 +189,7 @@ namespace PhotoArchiver
             return new RetrieveResult(results);
         }
 
-        private async Task<DownloadResult> DownloadCoreAsync(string path, CloudBlockBlob blob, CancellationToken cancellationToken)
+        private async Task<DownloadResult> DownloadCoreAsync(string path, CloudBlockBlob blob, bool verify, CancellationToken cancellationToken)
         {
             // prepare
             var requestOptions = new BlobRequestOptions
@@ -215,6 +216,26 @@ namespace PhotoArchiver
                     cancellationToken
                 );
                 CostEstimator.AddRead(blob.Properties.Length);
+
+                // verify
+                if (verify)
+                {
+                    if (blob.Properties.ContentMD5 == null)
+                    {
+                        await blob.FetchAttributesAsync();
+                    }
+
+                    using var stream = File.OpenRead(path);
+                    using var hashAlgorithm = MD5.Create();
+                    var hash = hashAlgorithm.ComputeHash(stream);
+                    var b64 = Convert.ToBase64String(hash);
+                    
+                    if (blob.Properties.ContentMD5 != b64)
+                    {
+                        throw new VerificationFailedException(new FileInfo(path), blob);
+                    }
+                }
+
                 return DownloadResult.Succeeded;
             }
 

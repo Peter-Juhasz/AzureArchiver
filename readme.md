@@ -76,6 +76,7 @@ Configuration is based on the .NET Standard library and the application reads it
    - `Tags`: filter by tags (tagged by Computer Vision)
    - `People`: filter by IDs of people (tagged by Face API)
    - `RehydrationTier` (default `"Hot"`): rehydrate archived blobs to this tier temporarily for download
+   - `Verify` (default `false`): verify downloaded files by MD5 hash
 
 ### Configuration file
 You can persist your configuration into a file named `appsettings.json`, for example:
