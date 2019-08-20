@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace PhotoArchiver.Download
 {
@@ -10,6 +11,6 @@ namespace PhotoArchiver.Download
 
         public DateTimeOffset? Started { get; set; }
 
-        public PendingItem[] PendingItems { get; set; } = Array.Empty<PendingItem>();
+        public IReadOnlyCollection<PendingItem> PendingItems { get; set; } = Array.Empty<PendingItem>();
     }
 }

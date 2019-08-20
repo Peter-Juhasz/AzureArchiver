@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Thumbnails
 {
@@ -18,6 +19,7 @@ namespace PhotoArchiver.Thumbnails
         public bool IsEnabled() => MaxWidth != null && MaxHeight != null;
 
 
+        [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "<Pending>")]
         public void Validate()
         {
             if (MaxWidth <= 0)

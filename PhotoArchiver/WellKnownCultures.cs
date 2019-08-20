@@ -4,6 +4,6 @@ namespace PhotoArchiver
 {
     public static class WellKnownCultures
     {
-        public static CultureInfo EnglishUnitedStates = CultureInfo.GetCultureInfo("en-us");
+        public static readonly CultureInfo EnglishUnitedStates = CultureInfo.GetCultureInfo("en-us");
     }
 }

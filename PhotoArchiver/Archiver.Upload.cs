@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -32,10 +33,11 @@ namespace PhotoArchiver
 
     public partial class Archiver
     {
+        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
         {
             // initialize
-            ProgressIndicator.Indeterminate();
+            ProgressIndicator.ToIndeterminateState();
             var directory = new DirectoryInfo(path);
             var container = Client.GetContainerReference(StorageOptions.Container);
             var lastDirectoryName = null as string;
@@ -74,7 +76,7 @@ namespace PhotoArchiver
 
             // enumerate files in directory
             ProgressIndicator.Initialize();
-            ProgressIndicator.Set(processedBytes, allBytes);
+            ProgressIndicator.SetProgress(processedBytes, allBytes);
             foreach (var file in query)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -103,15 +105,15 @@ namespace PhotoArchiver
                         Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
                         processedCount++;
                         processedBytes += item.Info.Length;
-                        ProgressIndicator.Set(processedBytes, allBytes);
+                        ProgressIndicator.SetProgress(processedBytes, allBytes);
                         continue;
                     }
 
                     // blob
-                    var blobDirectory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
+                    var blobDirectory = container.GetDirectoryReference(String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date));
                     item.Metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
-                    item.Metadata.Add("CreatedAt", date.Value.ToString("o"));
-                    item.Metadata.Add("OriginalFileSize", file.Length.ToString());
+                    item.Metadata.Add("CreatedAt", date.Value.ToString("o", CultureInfo.InvariantCulture));
+                    item.Metadata.Add("OriginalFileSize", file.Length.ToString(CultureInfo.InvariantCulture));
 
                     // deduplicate
                     if (Options.Deduplicate)
@@ -352,17 +354,17 @@ namespace PhotoArchiver
                     result = UploadResult.Error;
                     Logger.LogError(ex, $"Failed to process {file}");
                     results.Add(new FileUploadResult(file, result, ex));
-                    ProgressIndicator.Error();
+                    ProgressIndicator.ToErrorState();
                 }
                 finally
                 {
                     processedCount++;
                     processedBytes += item.Info.Length;
-                    ProgressIndicator.Set(processedBytes, allBytes);
+                    ProgressIndicator.SetProgress(processedBytes, allBytes);
                 }
             }
 
-            ProgressIndicator.Finished();
+            ProgressIndicator.ToFinishedState();
 
             return new ArchiveResult(results);
         }
@@ -443,13 +445,13 @@ namespace PhotoArchiver
         {
             Logger.LogTrace($"Reading date for {item.Info}...");
 
-            switch (item.Info.Extension.ToLower())
+            switch (item.Info.Extension.ToUpperInvariant())
             {
-                case ".jpg":
-                case ".jpeg":
-                case ".jfif":
-                case ".heif":
-                case ".heic":
+                case ".JPG":
+                case ".JPEG":
+                case ".JFIF":
+                case ".HEIF":
+                case ".HEIC":
                     {
                         var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
@@ -460,9 +462,9 @@ namespace PhotoArchiver
                     }
                     break;
 
-                case ".cr2":
-                case ".nef":
-                case ".dng":
+                case ".CR2":
+                case ".NEF":
+                case ".DNG":
                     {
                         var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
@@ -491,8 +493,8 @@ namespace PhotoArchiver
                     }
                     break;
 
-                case ".mp4":
-                case ".mov":
+                case ".MP4":
+                case ".MOV":
                     {
                         var metadata = QuickTimeMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
@@ -506,7 +508,7 @@ namespace PhotoArchiver
                     }
                     break;
 
-                case ".avi":
+                case ".AVI":
                     {
                         var date = await AviDateReader.ReadAsync(await item.OpenReadAsync());
                         if (date != null)
@@ -516,7 +518,7 @@ namespace PhotoArchiver
                     }
                     break;
 
-                case ".mpg":
+                case ".MPG":
                     {
                         if (TryParseDate(item.Info.Name, out var date))
                             return date;
@@ -530,6 +532,8 @@ namespace PhotoArchiver
             return null;
         }
 
+        [SuppressMessage("Globalization", "CA1307:Specify StringComparison", Justification = "<Pending>")]
+        [SuppressMessage("Globalization", "CA1305:Specify IFormatProvider", Justification = "<Pending>")]
         internal static bool TryParseDate(string fileName, out DateTime result)
         {
             // IMG_20190525_120904
@@ -573,6 +577,8 @@ namespace PhotoArchiver
             return false;
         }
 
+        [SuppressMessage("Globalization", "CA1307:Specify StringComparison", Justification = "<Pending>")]
+        [SuppressMessage("Globalization", "CA1305:Specify IFormatProvider", Justification = "<Pending>")]
         internal static DateTime ParseExifDateTime(string exifValue) =>
             DateTime.Parse(
                 exifValue

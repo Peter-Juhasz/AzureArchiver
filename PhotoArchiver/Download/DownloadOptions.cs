@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Collections.Generic;
 using Microsoft.Azure.Storage.Blob;
 
 namespace PhotoArchiver.Download
@@ -14,9 +14,9 @@ namespace PhotoArchiver.Download
 
         public DateTime? EndDate { get; set; }
 
-        public string[]? Tags { get; set; }
+        public IReadOnlyCollection<string>? Tags { get; set; }
 
-        public string[]? People { get; set; }
+        public IReadOnlyCollection<string>? People { get; set; }
 
         public StandardBlobTier RehydrationTier { get; set; } = StandardBlobTier.Hot;
 

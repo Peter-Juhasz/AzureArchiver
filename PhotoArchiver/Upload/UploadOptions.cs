@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Upload
 {
@@ -26,6 +27,7 @@ namespace PhotoArchiver.Upload
         public bool IsEnabled() => Path != null;
 
 
+        [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "<Pending>")]
         public void Validate()
         {
             if (Skip < 0)

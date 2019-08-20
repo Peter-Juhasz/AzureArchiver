@@ -2,15 +2,15 @@
 {
     public class NullProgressIndicator : IProgressIndicator
     {
-        public void Error()
+        public void ToErrorState()
         {
         }
 
-        public void Finished()
+        public void ToFinishedState()
         {
         }
 
-        public void Indeterminate()
+        public void ToIndeterminateState()
         {
         }
 
@@ -18,7 +18,7 @@
         {
         }
 
-        public void Set(long processed, long all)
+        public void SetProgress(long processed, long all)
         {
         }
     }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -25,7 +27,7 @@ namespace PhotoArchiver
         public async Task<RetrieveResult> RetrieveAsync(DownloadOptions options, CancellationToken cancellationToken)
         {
             // initialize
-            ProgressIndicator.Indeterminate();
+            ProgressIndicator.ToIndeterminateState();
 
             var container = Client.GetContainerReference(StorageOptions.Container);
 
@@ -42,7 +44,7 @@ namespace PhotoArchiver
             // download
             var processedCount = 0;
             ProgressIndicator.Initialize();
-            ProgressIndicator.Set(processedCount, all.Count);
+            ProgressIndicator.SetProgress(processedCount, all.Count);
             foreach (var blob in all)
             {
                 DownloadResult result = default;
@@ -58,7 +60,7 @@ namespace PhotoArchiver
                         CostEstimator.AddWrite();
 
                         processedCount++;
-                        ProgressIndicator.Set(processedCount, all.Count);
+                        ProgressIndicator.SetProgress(processedCount, all.Count);
                         continue;
                     }
 
@@ -75,11 +77,11 @@ namespace PhotoArchiver
                 {
                     results.Add(new BlobDownloadResult(blob, result));
                     processedCount++;
-                    ProgressIndicator.Set(processedCount, all.Count);
+                    ProgressIndicator.SetProgress(processedCount, all.Count);
                 }
             }
 
-            ProgressIndicator.Finished();
+            ProgressIndicator.ToFinishedState();
             return new RetrieveResult(results);
         }
 
@@ -97,7 +99,7 @@ namespace PhotoArchiver
                 Logger.LogTrace($"Listing blobs by date '{date}'...");
                 CostEstimator.AddListOrCreateContainer();
 
-                var directory = container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, date));
+                var directory = container.GetDirectoryReference(String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date));
 
                 BlobContinuationToken? continuationToken = null;
                 do
@@ -121,10 +123,11 @@ namespace PhotoArchiver
             return all;
         }
 
+        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         public async Task<RetrieveResult> ContinueAsync(CancellationToken cancellationToken)
         {
             // initialize
-            ProgressIndicator.Indeterminate();
+            ProgressIndicator.ToIndeterminateState();
 
             var results = new List<BlobDownloadResult>();
 
@@ -137,7 +140,7 @@ namespace PhotoArchiver
 
                 var processed = 0;
                 var downloaded = new List<PendingItem>();
-                ProgressIndicator.Set(processed, session.PendingItems.Length);
+                ProgressIndicator.SetProgress(processed, session.PendingItems.Count);
 
                 // process
                 foreach (var item in session.PendingItems)
@@ -169,12 +172,12 @@ namespace PhotoArchiver
                     {
                         results.Add(new BlobDownloadResult(blob, result));
                         processed++;
-                        ProgressIndicator.Set(processed, session.PendingItems.Length);
+                        ProgressIndicator.SetProgress(processed, session.PendingItems.Count);
                     }
                 }
 
                 // save state
-                if (downloaded.Count == session.PendingItems.Length)
+                if (downloaded.Count == session.PendingItems.Count)
                 {
                     sessionFile.Delete();
                 }
@@ -186,7 +189,7 @@ namespace PhotoArchiver
                 }
             }
 
-            ProgressIndicator.Finished();
+            ProgressIndicator.ToFinishedState();
             return new RetrieveResult(results);
         }
 
@@ -263,7 +266,7 @@ namespace PhotoArchiver
             }
         }
 
-        private bool Match(CloudBlockBlob blob, DownloadOptions options)
+        private static bool Match(CloudBlockBlob blob, DownloadOptions options)
         {
             if (options.Tags?.Any() ?? false)
             {

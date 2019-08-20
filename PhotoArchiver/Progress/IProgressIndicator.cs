@@ -4,12 +4,12 @@
     {
         void Initialize();
 
-        void Indeterminate();
+        void ToIndeterminateState();
 
-        void Set(long processed, long all);
+        void SetProgress(long processed, long all);
 
-        void Finished();
+        void ToFinishedState();
 
-        void Error();
+        void ToErrorState();
     }
 }

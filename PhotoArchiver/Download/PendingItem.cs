@@ -4,8 +4,14 @@ namespace PhotoArchiver.Download
 {
     public class PendingItem
     {
-        public Uri? Blob { get; set; }
+        public PendingItem(Uri blob, string path)
+        {
+            Blob = blob;
+            Path = path;
+        }
 
-        public string? Path { get; set; }
+        public Uri Blob { get; set; }
+
+        public string Path { get; set; }
     }
 }

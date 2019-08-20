@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Face
 {
@@ -16,6 +17,7 @@ namespace PhotoArchiver.Face
         public bool IsEnabled() => Key != null;
 
 
+        [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "<Pending>")]
         public void Validate()
         {
             if (ConfidenceThreshold < 0 || ConfidenceThreshold > 1)

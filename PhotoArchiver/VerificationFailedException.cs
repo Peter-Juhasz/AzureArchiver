@@ -5,8 +5,7 @@ using Microsoft.Azure.Storage.Blob;
 
 namespace PhotoArchiver
 {
-    [Serializable]
-    internal class VerificationFailedException : Exception
+    public class VerificationFailedException : Exception
     {
         public VerificationFailedException(FileInfo info, CloudBlockBlob blob)
             : base($"Verification failed for file '{info}'")

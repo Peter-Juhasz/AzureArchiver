@@ -17,7 +17,7 @@ namespace PhotoArchiver.Upload
 
         public FileInfo Info { get; }
 
-        public IDictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+        public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
         private Stream? Buffer { get; set; } = null;
 

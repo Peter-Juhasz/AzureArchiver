@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace PhotoArchiver.Progress
 {
+    [SuppressMessage("Design", "CA1060:Move pinvokes to native methods class", Justification = "<Pending>")]
     internal class WindowsTaskbarProgressIndicator : IProgressIndicator
     {
         public WindowsTaskbarProgressIndicator()
@@ -23,12 +25,12 @@ namespace PhotoArchiver.Progress
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Normal);
         }
 
-        public void Indeterminate()
+        public void ToIndeterminateState()
         {
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Indeterminate);
         }
 
-        public void Set(long processed, long all)
+        public void SetProgress(long processed, long all)
         {
             if (processed < 0)
             {
@@ -48,13 +50,13 @@ namespace PhotoArchiver.Progress
             TaskbarProgress.SetValue(WindowHandle, processed, all);
         }
 
-        public void Finished()
+        public void ToFinishedState()
         {
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.NoProgress);
             FlashWindow(WindowHandle);
         }
 
-        public void Error()
+        public void ToErrorState()
         {
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Error);
         }
@@ -128,9 +130,9 @@ namespace PhotoArchiver.Progress
 
                 // ITaskbarList3
                 [PreserveSig]
-                void SetProgressValue(IntPtr hwnd, UInt64 ullCompleted, UInt64 ullTotal);
+                int SetProgressValue(IntPtr hwnd, UInt64 ullCompleted, UInt64 ullTotal);
                 [PreserveSig]
-                void SetProgressState(IntPtr hwnd, TaskbarStates state);
+                int SetProgressState(IntPtr hwnd, TaskbarStates state);
             }
 
             [ComImport()]
@@ -144,12 +146,12 @@ namespace PhotoArchiver.Progress
 
             public static void SetState(IntPtr windowHandle, TaskbarStates taskbarState)
             {
-                taskbarInstance.SetProgressState(windowHandle, taskbarState);
+                Marshal.ThrowExceptionForHR(taskbarInstance.SetProgressState(windowHandle, taskbarState));
             }
 
             public static void SetValue(IntPtr windowHandle, long progressValue, long progressMax)
             {
-                taskbarInstance.SetProgressValue(windowHandle, (ulong)progressValue, (ulong)progressMax);
+                Marshal.ThrowExceptionForHR(taskbarInstance.SetProgressValue(windowHandle, (ulong)progressValue, (ulong)progressMax));
             }
         }
     }
