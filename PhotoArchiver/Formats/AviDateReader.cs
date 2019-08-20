@@ -14,8 +14,9 @@ namespace PhotoArchiver.Formats
 
         public static async Task<DateTime?> ReadAsync(Stream stream)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(4096);
-            await stream.ReadAsync(buffer, 0, (int)stream.Length);
+            var length = 4096;
+            var buffer = ArrayPool<byte>.Shared.Rent(length);
+            await stream.ReadAsync(buffer, 0, Math.Min(length, (int)stream.Length));
 
             var idx = buffer.AsSpan().IndexOf(IDIT);
             if (idx == -1)
