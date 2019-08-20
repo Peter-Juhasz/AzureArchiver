@@ -8,7 +8,7 @@ namespace PhotoArchiver.Upload
 {
     using Extensions;
 
-    public class FileUploadItem : IDisposable
+    public sealed class FileUploadItem : IDisposable
     {
         public FileUploadItem(FileInfo info)
         {
@@ -41,7 +41,7 @@ namespace PhotoArchiver.Upload
             {
                 using var hashAlgorithm = MD5.Create();
                 Hash = hashAlgorithm.ComputeHash(await OpenReadAsync());
-                Metadata.Add("OriginalMD5", Convert.ToBase64String(Hash));
+                Metadata.Add(BlobMetadataKeys.OriginalMd5, Convert.ToBase64String(Hash));
             }
 
             return Hash;

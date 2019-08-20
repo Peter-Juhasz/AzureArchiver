@@ -1,12 +1,15 @@
-﻿using Microsoft.Azure.Storage.Blob;
-using PhotoArchiver.Costs;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using Microsoft.Azure.Storage.Blob;
+
 namespace PhotoArchiver.Deduplication
 {
+    using Costs;
+    using Extensions;
+
     public class DeduplicationService : IDeduplicationService
     {
         public DeduplicationService(CostEstimator costEstimator)
@@ -58,7 +61,11 @@ namespace PhotoArchiver.Deduplication
                 CostEstimator.AddListOrCreateContainer();
 
                 foreach (var item in page.Results.OfType<CloudBlockBlob>())
-                    set.Add(item.Properties.ContentMD5);
+                {
+                    var hash = Convert.ToBase64String(item.GetPlainMd5());
+                        
+                    set.Add(hash);
+                }
 
                 continuationToken = page.ContinuationToken;
             }

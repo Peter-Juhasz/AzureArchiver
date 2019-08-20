@@ -387,15 +387,17 @@ namespace PhotoArchiver
                 CostEstimator.AddOther();
 
                 // compare file size
-                if (blob.Properties.Length != item.Info.Length)
+                if (!blob.IsEncrypted())
                 {
-                    return false;
+                    if (blob.Properties.Length != item.Info.Length)
+                    {
+                        return false;
+                    }
                 }
 
                 // compare hash
-                var reference = Convert.FromBase64String(blob.Properties.ContentMD5);
                 var hash = await item.ComputeHashAsync();
-                if (!reference.AsSpan().SequenceEqual(hash.AsSpan()))
+                if (!blob.GetPlainMd5().AsSpan().SequenceEqual(hash.AsSpan()))
                 {
                     return false;
                 }

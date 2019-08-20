@@ -21,7 +21,7 @@ namespace PhotoArchiver.Thumbnails
 
         public JpegEncoder Encoder { get; }
 
-        public async Task<Stream> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight)
+        public Task<Stream> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight)
         {
             if (maxWidth <= 0)
             {
@@ -52,7 +52,7 @@ namespace PhotoArchiver.Thumbnails
             }
             var buffer = new MemoryStream();
             img.SaveAsJpeg(buffer, Encoder);
-            return buffer.Rewind();
+            return Task.FromResult(buffer.Rewind());
         }
     }
 }

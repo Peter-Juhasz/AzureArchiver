@@ -16,6 +16,7 @@ namespace PhotoArchiver
 {
     using Costs;
     using Download;
+    using Extensions;
     using KeyVault;
     using Storage;
 
@@ -199,7 +200,7 @@ namespace PhotoArchiver
             };
 
             // decryption
-            if (blob.Metadata.ContainsKey("encryptiondata"))
+            if (blob.IsEncrypted())
             {
                 requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
             }
@@ -228,9 +229,8 @@ namespace PhotoArchiver
                     using var stream = File.OpenRead(path);
                     using var hashAlgorithm = MD5.Create();
                     var hash = hashAlgorithm.ComputeHash(stream);
-                    var b64 = Convert.ToBase64String(hash);
                     
-                    if (blob.Properties.ContentMD5 != b64)
+                    if (!blob.GetPlainMd5().AsSpan().SequenceEqual(hash))
                     {
                         throw new VerificationFailedException(new FileInfo(path), blob);
                     }
