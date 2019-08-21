@@ -11,7 +11,7 @@ Requirements:
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
  - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
-Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself.
+Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself. [Read the best practices.](https://github.com/Peter-Juhasz/AzureArchiver/wiki/Best-Practices)
 
 ### Upload files to storage
 For basic usage, you have to specify only the path to the folder to upload and the connection string to your storage account.
