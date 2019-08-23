@@ -25,38 +25,26 @@ namespace PhotoArchiver
     using Costs;
     using Extensions;
     using Face;
+    using Files;
     using Formats;
     using KeyVault;
+    using Progress;
     using Storage;
     using Thumbnails;
     using Upload;
 
     public partial class Archiver
     {
-        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-        public async Task<ArchiveResult> ArchiveAsync(string path, CancellationToken cancellationToken)
+        public async Task<ArchiveResult> ArchiveAsync(IDirectory directory, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
         {
-            // initialize
-            ProgressIndicator.ToIndeterminateState();
-            var directory = new DirectoryInfo(path);
-            var container = Client.GetContainerReference(StorageOptions.Container);
-            var lastDirectoryName = null as string;
-
-            var results = new List<FileUploadResult>();
-
-            if (KeyVaultOptions.IsEnabled())
-            {
-                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
-            }
-
             // set up filter
             var matcher = new Matcher().AddInclude(Options.SearchPattern);
+            var files = await directory.GetFilesAsync();
 
-            var query = matcher.GetResultsInFullPath(directory.FullName)
-                .OrderBy(f => f)
-                .Select(f => new FileInfo(f))
+            var query = files.Where(f => matcher.Match(directory.Path, f.Path).HasMatches)
+                .OrderBy(f => f.Path)
                 .Where(f => !IgnoredFileNames.Contains(f.Name))
-                .Where(f => !IgnoredExtensions.Contains(f.Extension));
+                .Where(f => !IgnoredExtensions.Contains(f.GetExtension()));
 
             if (Options.Skip != 0)
             {
@@ -68,21 +56,41 @@ namespace PhotoArchiver
                 query = query.Take(Options.Take.Value);
             }
 
+            return await ArchiveAsync(query.ToList(), progressIndicator, cancellationToken);
+        }
+
+        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
+        public async Task<ArchiveResult> ArchiveAsync(IReadOnlyList<IFile> files, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
+        {
+            // initialize
+            progressIndicator.ToIndeterminateState();
+            var container = Client.GetContainerReference(StorageOptions.Container);
+            var lastDirectoryName = null as string;
+
+            var results = new List<FileUploadResult>();
+
+            if (KeyVaultOptions.IsEnabled())
+            {
+                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
+            }
+
             // estimate count
             var processedCount = 0;
-            var count = query.Count();
+            var count = files.Count;
             var processedBytes = 0L;
-            var allBytes = query.Sum(f => f.Length);
+            var allBytes = 0L;
+            foreach (var f in files)
+                allBytes += await f.GetSizeAsync();
 
             // enumerate files in directory
-            ProgressIndicator.Initialize();
-            ProgressIndicator.SetProgress(processedBytes, allBytes);
-            foreach (var file in query)
+            progressIndicator.Initialize(allBytes, files.Count);
+            progressIndicator.SetBytesProgress(processedBytes);
+            foreach (var file in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // display directory
-                var currentDirectoryName = file.Directory.FullName;
+                var currentDirectoryName = Path.GetDirectoryName(file.Path);
                 if (lastDirectoryName != currentDirectoryName)
                 {
                     Logger.LogInformation($"Processing directory '{currentDirectoryName}'");
@@ -97,23 +105,24 @@ namespace PhotoArchiver
                     Logger.LogTrace($"Processing {file}...");
 
                     // read date
-                    var date = await GetDateAsync(item);
+                    var date = await GetDateAsync(item, files);
                     if (date == null)
                     {
                         result = UploadResult.DateMissing;
                         results.Add(new FileUploadResult(file, result));
                         Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
                         processedCount++;
-                        processedBytes += item.Info.Length;
-                        ProgressIndicator.SetProgress(processedBytes, allBytes);
+                        processedBytes += await item.Info.GetSizeAsync();
+                        progressIndicator.SetItemProgress(processedCount);
+                        progressIndicator.SetBytesProgress(processedBytes);
                         continue;
                     }
 
                     // blob
                     var blobDirectory = container.GetDirectoryReference(String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date));
-                    item.Metadata.Add("OriginalFileName", file.FullName.RemoveDiacritics());
+                    item.Metadata.Add("OriginalFileName", file.Path.RemoveDiacritics());
                     item.Metadata.Add("CreatedAt", date.Value.ToString("o", CultureInfo.InvariantCulture));
-                    item.Metadata.Add("OriginalFileSize", file.Length.ToString(CultureInfo.InvariantCulture));
+                    item.Metadata.Add("OriginalFileSize", (await file.GetSizeAsync()).ToString(CultureInfo.InvariantCulture));
 
                     // deduplicate
                     if (Options.Deduplicate)
@@ -192,7 +201,7 @@ namespace PhotoArchiver
                         AddMetadata(blob, item.Metadata);
 
                         // set metadata
-                        if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out var mimeType))
+                        if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.GetExtension(), out var mimeType))
                         {
                             blob.Properties.ContentType = mimeType;
                         }
@@ -220,11 +229,11 @@ namespace PhotoArchiver
                                             var hash = await item.ComputeHashAsync();
                                             var formattedHash = BitConverter.ToString(hash).Replace("-", string.Empty);
 
-                                            blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.Extension));
+                                            blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.GetExtension()));
 
                                             // set metadata
                                             AddMetadata(blob, item.Metadata);
-                                            if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.Extension, out mimeType))
+                                            if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.GetExtension(), out mimeType))
                                             {
                                                 blob.Properties.ContentType = mimeType;
                                             }
@@ -341,7 +350,7 @@ namespace PhotoArchiver
                         if (Options.Delete)
                         {
                             Logger.LogTrace($"Deleting {file}...");
-                            file.Delete();
+                            await file.DeleteAsync();
                         }
                     }
 
@@ -354,17 +363,18 @@ namespace PhotoArchiver
                     result = UploadResult.Error;
                     Logger.LogError(ex, $"Failed to process {file}");
                     results.Add(new FileUploadResult(file, result, ex));
-                    ProgressIndicator.ToErrorState();
+                    progressIndicator.ToErrorState();
                 }
                 finally
                 {
                     processedCount++;
-                    processedBytes += item.Info.Length;
-                    ProgressIndicator.SetProgress(processedBytes, allBytes);
+                    processedBytes += await item.Info.GetSizeAsync();
+                    progressIndicator.SetItemProgress(processedCount);
+                    progressIndicator.SetBytesProgress(processedBytes);
                 }
             }
 
-            ProgressIndicator.ToFinishedState();
+            progressIndicator.ToFinishedState();
 
             return new ArchiveResult(results);
         }
@@ -391,7 +401,7 @@ namespace PhotoArchiver
                 // compare file size
                 if (!blob.IsEncrypted())
                 {
-                    if (blob.Properties.Length != item.Info.Length)
+                    if (blob.Properties.Length != await item.Info.GetSizeAsync())
                     {
                         return false;
                     }
@@ -436,16 +446,16 @@ namespace PhotoArchiver
                 await blob.Container.CreateIfNotExistsAsync();
                 await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
             }
-            CostEstimator.AddWrite(item.Info.Length);
+            CostEstimator.AddWrite(await item.Info.GetSizeAsync());
 
             return UploadResult.Uploaded;
         }
 
-        private async Task<DateTime?> GetDateAsync(FileUploadItem item)
+        private async Task<DateTime?> GetDateAsync(FileUploadItem item, IEnumerable<IFile> peers)
         {
             Logger.LogTrace($"Reading date for {item.Info}...");
 
-            switch (item.Info.Extension.ToUpperInvariant())
+            switch (item.Info.GetExtension().ToUpperInvariant())
             {
                 case ".JPG":
                 case ".JPEG":
@@ -474,20 +484,20 @@ namespace PhotoArchiver
                         }
 
                         // fallback to JPEG
-                        var jpeg = new FileInfo(Path.ChangeExtension(item.Info.FullName, ".jpg"));
-                        if (jpeg.Exists)
+                        var jpeg = peers.FirstOrDefault(p => p.Path == Path.ChangeExtension(item.Info.Path, ".jpg"));
+                        if (jpeg != null)
                         {
                             using var item2 = new FileUploadItem(jpeg);
-                            return await GetDateAsync(item2);
+                            return await GetDateAsync(item2, peers);
                         }
 
-                        if (item.Info.Extension.Equals(".dng", StringComparison.OrdinalIgnoreCase))
+                        if (item.Info.GetExtension().Equals(".dng", StringComparison.OrdinalIgnoreCase))
                         {
-                            jpeg = new FileInfo(Path.ChangeExtension(item.Info.FullName, ".jpg").Replace("__highres", ""));
-                            if (jpeg.Exists)
+                            jpeg = peers.FirstOrDefault(p => p.Path == Path.ChangeExtension(item.Info.Path, ".jpg").Replace("__highres", ""));
+                            if (jpeg != null)
                             {
                                 using var item2 = new FileUploadItem(jpeg);
-                                return await GetDateAsync(item2);
+                                return await GetDateAsync(item2, peers);
                             }
                         }
                     }

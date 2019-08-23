@@ -1,0 +1,103 @@
+﻿<Page
+    x:Class="PhotoArchiver.Windows.RehydratingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoArchiver.Windows"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tc="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:vm="using:PhotoArchiver.Windows.ViewModels"
+    xmlns:converters="using:PhotoArchiver.Windows.Converters"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <converters:StringNullToVisibilityConverter x:Key="StringNullToVisibilityConverter" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:BooleanToVisibilityNegatedConverter x:Key="BooleanToVisibilityNegatedConverter" />
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
+        <converters:LongToDoubleConverter x:Key="LongToDoubleConverter" />
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <CommandBar DefaultLabelPosition="Right" Background="{ThemeResource SystemControlChromeLowAcrylicWindowBrush}">
+            <AppBarButton Icon="Cancel" Label="Cancel all" />
+        </CommandBar>
+
+        <ItemsControl ItemsSource="{x:Bind TaskStatusManager.Tasks}" Grid.Row="1">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:UploadTaskViewModel">
+                    <Border BorderThickness="1" BorderBrush="{ThemeResource AppBarBorderThemeBrush}" Margin="16" Padding="8" MinHeight="80">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" MinWidth="80" />
+                            </Grid.ColumnDefinitions>
+
+                            <ProgressBar Value="{x:Bind Value, Mode=OneWay, Converter={StaticResource LongToDoubleConverter}, FallbackValue=0}" Maximum="{x:Bind Maximum, Mode=OneWay, Converter={StaticResource LongToDoubleConverter}}"
+                                         HorizontalAlignment="Stretch" Margin="0,8,0,0" Grid.Column="1" Grid.ColumnSpan="3" VerticalAlignment="Bottom" />
+                            
+                            <SymbolIcon Symbol="Upload" RenderTransformOrigin="0.5,0.5" Visibility="{x:Bind IsUpload}">
+                                <SymbolIcon.RenderTransform>
+                                    <ScaleTransform ScaleX="1.5" ScaleY="1.5" />
+                                </SymbolIcon.RenderTransform>
+                            </SymbolIcon>
+                            <SymbolIcon Symbol="Download" RenderTransformOrigin="0.5,0.5" Visibility="{x:Bind IsDownload}">
+                                <SymbolIcon.RenderTransform>
+                                    <ScaleTransform ScaleX="1.5" ScaleY="1.5" />
+                                </SymbolIcon.RenderTransform>
+                            </SymbolIcon>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Visibility="{x:Bind IsInProgress, Mode=OneWay}">Uploading items...</TextBlock>
+                                <TextBlock Visibility="{x:Bind IsFinished, Mode=OneWay}">Finished.</TextBlock>
+                                <TextBlock Visibility="{x:Bind IsCancelled, Mode=OneWay}">Cancelled.</TextBlock>
+                                
+                                <StackPanel Visibility="{x:Bind HasError, Mode=OneWay}" Orientation="Horizontal">
+                                    <SymbolIcon Symbol="Important" Foreground="Red" />
+                                    <TextBlock Foreground="Red">An error has occurred.</TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="16" HorizontalAlignment="Right" Margin="8" Visibility="{x:Bind IsInProgress, Mode=OneWay}">
+                                <Run Text="{x:Bind ProcessedItemsCount, Mode=OneWay}"></Run>
+                                <Run>of</Run>
+                                <Run Text="{x:Bind AllItemsCount, Mode=OneWay}"></Run>
+                            </TextBlock>
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="16" HorizontalAlignment="Right" Margin="8" Visibility="{x:Bind IsFinished, Mode=OneWay}">
+                                <Run Text="{x:Bind AllItemsCount, Mode=OneWay}" /> items
+                            </TextBlock>
+
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="16" HorizontalAlignment="Right" TextAlignment="Right" MinWidth="160" Margin="8" Visibility="{x:Bind IsInProgress, Mode=OneWay}">
+                                <Run Text="{x:Bind Value, Mode=OneWay, Converter={StaticResource FileSizeConverter}}"></Run>
+                                <Run>of</Run>
+                                <Run Text="{x:Bind Maximum, Mode=OneWay, Converter={StaticResource FileSizeConverter}}"></Run>
+                            </TextBlock>
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="16" HorizontalAlignment="Right" Margin="8" Visibility="{x:Bind IsFinished, Mode=OneWay}"
+                                       Text="{x:Bind Maximum, Mode=OneWay, Converter={StaticResource FileSizeConverter}}" />
+
+                            <StackPanel Visibility="{x:Bind IsInProgress, Mode=OneWay}" Orientation="Horizontal" Grid.Column="4" HorizontalAlignment="Right">
+                                <AppBarButton Icon="Cancel" Label="Cancel" Command="{x:Bind CancelCommand}" />
+                            </StackPanel>
+                            <SymbolIcon Symbol="Accept" Foreground="Green" HorizontalAlignment="Right" Grid.Column="4" Visibility="{x:Bind IsFinished, Mode=OneWay}" RenderTransformOrigin="0.5,0.5">
+                                <SymbolIcon.RenderTransform>
+                                    <ScaleTransform ScaleX="1.5" ScaleY="1.5" />
+                                </SymbolIcon.RenderTransform>
+                            </SymbolIcon>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</Page>

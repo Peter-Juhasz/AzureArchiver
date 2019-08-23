@@ -1,0 +1,22 @@
+﻿<Page
+    x:Class="PhotoArchiver.Windows.UploadPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoArchiver.Windows"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid AllowDrop="True" DragOver="Grid_DragOver" Background="{x:Bind Background}" Drop="Grid_Drop">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <SymbolIcon Symbol="Upload" Width="64" Height="64" />
+            <TextBlock HorizontalAlignment="Center" Margin="0,0,0,16">Drop a folder or files here</TextBlock>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Click="UploadFolderButton_Click">Pick a folder</Button>
+                <TextBlock VerticalAlignment="Center" Margin="8">or</TextBlock>
+                <Button Click="UploadFilesButton_Click">Pick files</Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Page>

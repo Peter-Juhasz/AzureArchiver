@@ -27,6 +27,7 @@ namespace PhotoArchiver.Console
     using Deduplication;
     using Download;
     using Face;
+    using Files;
     using KeyVault;
     using Logging;
     using Progress;
@@ -165,11 +166,12 @@ namespace PhotoArchiver.Console
             }
 
             var watch = Stopwatch.StartNew();
+            var progressIndicator = provider.GetRequiredService<IProgressIndicator>();
 
             // upload
             if (uploadOptions.IsEnabled())
             {
-                var result = await archiver.ArchiveAsync(options.Path!, default);
+                var result = await archiver.ArchiveAsync(new SystemIODirectory(options.Path!), progressIndicator, default);
                 watch.Stop();
 
                 // summarize results
@@ -182,7 +184,7 @@ namespace PhotoArchiver.Console
                 logger.LogInformation($"Time elapsed: {watch.Elapsed}");
                 if (failed.Any())
                 {
-                    logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.FullName, f.Error?.Message))));
+                    logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.File.Path, f.Error?.Message))));
                 }
             }
 
@@ -210,7 +212,7 @@ namespace PhotoArchiver.Console
                 }
                 else
                 {
-                    var result = await archiver.RetrieveAsync(downloadOptions, default);
+                    var result = await archiver.RetrieveAsync(new SystemIODirectory(downloadOptions.Path!), downloadOptions, progressIndicator, default);
                     watch.Stop();
 
                     // summarize results

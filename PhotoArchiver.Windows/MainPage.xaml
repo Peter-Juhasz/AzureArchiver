@@ -1,0 +1,83 @@
+﻿<Page
+    x:Class="PhotoArchiver.Windows.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoArchiver.Windows"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tc="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:vm="using:PhotoArchiver.Windows.ViewModels"
+    xmlns:converters="using:PhotoArchiver.Windows.Converters"
+    mc:Ignorable="d"
+    Background="{ThemeResource SystemControlChromeLowAcrylicWindowBrush}">
+
+    <Page.Resources>
+        <converters:StringNullToVisibilityConverter x:Key="StringNullToVisibilityConverter" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:BooleanToVisibilityNegatedConverter x:Key="BooleanToVisibilityNegatedConverter" />
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
+        <AcrylicBrush x:Key="NavigationViewTopPaneBackground" BackgroundSource="HostBackdrop" TintColor="{StaticResource SystemChromeAltHighColor}" TintOpacity="0.8" FallbackColor="{StaticResource SystemChromeLowColor}" />
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Azure Media Archive" FontSize="12" Margin="12,8" />
+
+        <NavigationView x:Name="NavigationView" Grid.Row="1" PaneDisplayMode="Top" IsBackButtonVisible="Collapsed" IsSettingsVisible="True"
+                        ItemInvoked="NavigationView_ItemInvoked" Loaded="NavigationView_Loaded">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Tag="upload">Upload</NavigationViewItem>
+                <NavigationViewItem Tag="browse">Browse</NavigationViewItem>
+                <NavigationViewItem Tag="rehydrating">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock>In progress</TextBlock>
+                        <TextBlock Visibility="{x:Bind ViewModel.ShowCount, Mode=OneWay}" Margin="8,0,0,0">(<Run Text="{x:Bind ViewModel.InProgressCount, Mode=OneWay}" />)</TextBlock>
+                    </StackPanel>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" IsTabStop="True" Navigated="ContentFrame_Navigated" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+                <Frame.ContentTransitions>
+                    <TransitionCollection>
+                        <NavigationThemeTransition>
+                            <NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                                <SlideNavigationTransitionInfo/>
+                            </NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                        </NavigationThemeTransition>
+                    </TransitionCollection>
+                </Frame.ContentTransitions>
+            </Frame>
+        </NavigationView>
+
+        <Pivot Grid.Row="1" SelectedIndex="1" Visibility="Collapsed">
+            <Pivot.ItemContainerStyle>
+                <Style TargetType="PivotItem">
+                    <Setter Property="Background" Value="{ThemeResource ApplicationPageBackgroundThemeBrush}" />
+                    <Setter Property="Margin" Value="0" />
+                </Style>
+            </Pivot.ItemContainerStyle>
+
+            <PivotItem Header="Upload">
+                <Grid>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <SymbolIcon Symbol="Upload" Width="64" Height="64" />
+                        <TextBlock HorizontalAlignment="Center" Margin="0,0,0,16">Drop a folder or files here</TextBlock>
+                        <Button HorizontalAlignment="Center">Pick folder</Button>
+                    </StackPanel>
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Rehydrating">
+                <CommandBar DefaultLabelPosition="Right" Background="{ThemeResource SystemControlChromeHighAcrylicWindowMediumBrush}">
+                    <AppBarButton Icon="Pause" Label="Pause" />
+                    <AppBarButton Icon="Play" Label="Continue" />
+                    <AppBarButton Icon="Cancel" Label="Cancel" />
+                </CommandBar>
+            </PivotItem>
+        </Pivot>
+    </Grid>
+</Page>

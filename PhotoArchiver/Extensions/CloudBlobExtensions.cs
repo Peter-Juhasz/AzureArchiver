@@ -4,9 +4,11 @@ using Microsoft.Azure.Storage.Blob;
 
 namespace PhotoArchiver.Extensions
 {
-    internal static class CloudBlobExtensions
+    public static class CloudBlobExtensions
     {
         public static bool IsEncrypted(this CloudBlob blob) => blob.Metadata.ContainsKey("encryptiondata");
+
+        public static bool IsArchived(this CloudBlob blob) => blob.Properties.StandardBlobTier == StandardBlobTier.Archive;
 
         public static byte[] GetPlainMd5(this CloudBlob item)
         {

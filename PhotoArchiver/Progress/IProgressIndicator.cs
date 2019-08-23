@@ -2,11 +2,13 @@
 {
     public interface IProgressIndicator
     {
-        void Initialize();
+        void Initialize(long allBytes, long allItems);
 
         void ToIndeterminateState();
 
-        void SetProgress(long processed, long all);
+        void SetBytesProgress(long bytesProcessed);
+
+        void SetItemProgress(long itemsProcessed);
 
         void ToFinishedState();
 

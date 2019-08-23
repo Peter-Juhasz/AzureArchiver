@@ -20,8 +20,21 @@ namespace PhotoArchiver.Progress
 
         protected IntPtr WindowHandle { get; }
 
-        public void Initialize()
+        protected long AllBytes { get; set; }
+
+        public void Initialize(long allBytes, long allItems)
         {
+            if (allBytes < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(allBytes));
+            }
+
+            if (allItems < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(allItems));
+            }
+
+            AllBytes = allBytes;
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Normal);
         }
 
@@ -30,24 +43,23 @@ namespace PhotoArchiver.Progress
             TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Indeterminate);
         }
 
-        public void SetProgress(long processed, long all)
+        public void SetBytesProgress(long processed)
         {
             if (processed < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(processed));
             }
 
-            if (all < 0)
+            if (processed > AllBytes)
             {
-                throw new ArgumentOutOfRangeException(nameof(all));
+                processed = AllBytes;
             }
 
-            if (processed > all)
-            {
-                processed = all;
-            }
+            TaskbarProgress.SetValue(WindowHandle, processed, AllBytes);
+        }
 
-            TaskbarProgress.SetValue(WindowHandle, processed, all);
+        public void SetItemProgress(long itemsProcessed)
+        {
         }
 
         public void ToFinishedState()
