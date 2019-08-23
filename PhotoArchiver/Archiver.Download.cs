@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Azure.Storage;
 using Microsoft.Azure.Storage.Blob;
+using Microsoft.Azure.Storage.Core.Util;
 using Microsoft.Azure.Storage.RetryPolicies;
 using Microsoft.Extensions.Logging;
 
@@ -19,15 +20,17 @@ namespace PhotoArchiver
     using Costs;
     using Download;
     using Extensions;
+    using Files;
     using KeyVault;
+    using Progress;
     using Storage;
 
     public partial class Archiver
     {
-        public async Task<RetrieveResult> RetrieveAsync(DownloadOptions options, CancellationToken cancellationToken)
+        public async Task<RetrieveResult> RetrieveAsync(IDirectory directory, DownloadOptions options, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
         {
             // initialize
-            ProgressIndicator.ToIndeterminateState();
+            progressIndicator.ToIndeterminateState();
 
             var container = Client.GetContainerReference(StorageOptions.Container);
 
@@ -36,17 +39,26 @@ namespace PhotoArchiver
                 _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
             }
 
-            var results = new List<BlobDownloadResult>();
-
             // collect blobs to download
             var all = await CollectBlobsForDownloadAsync(options, container);
 
+            return await RetrieveAsync(all, directory, options, progressIndicator, cancellationToken);
+        }
+
+        public async Task<RetrieveResult> RetrieveAsync(IReadOnlyList<CloudBlockBlob> blobs, IDirectory directory, DownloadOptions options, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
+        {
+            var results = new List<BlobDownloadResult>();
+
             // download
             var processedCount = 0;
-            ProgressIndicator.Initialize();
-            ProgressIndicator.SetProgress(processedCount, all.Count);
-            foreach (var blob in all)
+            var processedBytes = 0L;
+            var allBytes = blobs.Sum(b => b.Properties.Length);
+            progressIndicator.Initialize(allBytes, blobs.Count);
+            progressIndicator.SetBytesProgress(processedBytes);
+            foreach (var blob in blobs)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 DownloadResult result = default;
 
                 try
@@ -60,13 +72,15 @@ namespace PhotoArchiver
                         CostEstimator.AddWrite();
 
                         processedCount++;
-                        ProgressIndicator.SetProgress(processedCount, all.Count);
+                        progressIndicator.SetItemProgress(processedCount);
+                        progressIndicator.SetBytesProgress(processedBytes);
                         continue;
                     }
 
                     // download
-                    var path = Path.Combine(options.Path, Path.GetFileName(blob.Name));
-                    result = await DownloadCoreAsync(path, blob, Options.Verify, cancellationToken);
+                    var targetFile = await directory.CreateFileAsync(Path.GetFileName(blob.Name));
+                    var progress = new StorageProgressShim(progressIndicator, processedBytes);
+                    result = await DownloadCoreAsync(targetFile, blob, Options.Verify, progress, cancellationToken);
                 }
                 catch (StorageException ex)
                 {
@@ -77,11 +91,13 @@ namespace PhotoArchiver
                 {
                     results.Add(new BlobDownloadResult(blob, result));
                     processedCount++;
-                    ProgressIndicator.SetProgress(processedCount, all.Count);
+                    processedBytes += blob.Properties.Length;
+                    progressIndicator.SetItemProgress(processedCount);
+                    progressIndicator.SetBytesProgress(processedBytes);
                 }
             }
 
-            ProgressIndicator.ToFinishedState();
+            progressIndicator.ToFinishedState();
             return new RetrieveResult(results);
         }
 
@@ -131,7 +147,6 @@ namespace PhotoArchiver
 
             var results = new List<BlobDownloadResult>();
 
-            ProgressIndicator.Initialize();
             foreach (var sessionFile in new DirectoryInfo("Sessions").GetFiles())
             {
                 // read state
@@ -140,7 +155,8 @@ namespace PhotoArchiver
 
                 var processed = 0;
                 var downloaded = new List<PendingItem>();
-                ProgressIndicator.SetProgress(processed, session.PendingItems.Count);
+                ProgressIndicator.Initialize(0L, session.PendingItems.Count); // TODO: fix
+                ProgressIndicator.SetBytesProgress(processed);
 
                 // process
                 foreach (var item in session.PendingItems)
@@ -153,7 +169,9 @@ namespace PhotoArchiver
                     try
                     {
                         // download
-                        result = await DownloadCoreAsync(path, blob, Options.Verify, cancellationToken);
+                        IFile file = null; // TODO: fix
+                        var progress = new StorageProgressShim(null, 0L); // TODO: fix
+                        result = await DownloadCoreAsync(file, blob, Options.Verify, progress, cancellationToken);
 
                         // archive
                         if (StorageOptions.Archive)
@@ -172,7 +190,7 @@ namespace PhotoArchiver
                     {
                         results.Add(new BlobDownloadResult(blob, result));
                         processed++;
-                        ProgressIndicator.SetProgress(processed, session.PendingItems.Count);
+                        ProgressIndicator.SetBytesProgress(processed);
                     }
                 }
 
@@ -193,7 +211,7 @@ namespace PhotoArchiver
             return new RetrieveResult(results);
         }
 
-        private async Task<DownloadResult> DownloadCoreAsync(string path, CloudBlockBlob blob, bool verify, CancellationToken cancellationToken)
+        private async Task<DownloadResult> DownloadCoreAsync(IFile file, CloudBlockBlob blob, bool verify, IProgress<StorageProgress> progress, CancellationToken cancellationToken)
         {
             // prepare
             var requestOptions = new BlobRequestOptions
@@ -211,12 +229,13 @@ namespace PhotoArchiver
             // download
             try
             {
-                await blob.DownloadToFileAsync(
-                    path,
-                    FileMode.CreateNew,
+                using var stream = await file.OpenWriteAsync();
+                await blob.DownloadToStreamAsync(
+                    stream,
                     AccessCondition.GenerateEmptyCondition(),
                     requestOptions,
                     null,
+                    progress,
                     cancellationToken
                 );
                 CostEstimator.AddRead(blob.Properties.Length);
@@ -229,13 +248,13 @@ namespace PhotoArchiver
                         await blob.FetchAttributesAsync();
                     }
 
-                    using var stream = File.OpenRead(path);
+                    using var verifyStream = await file.OpenReadAsync();
                     using var hashAlgorithm = MD5.Create();
-                    var hash = hashAlgorithm.ComputeHash(stream);
+                    var hash = hashAlgorithm.ComputeHash(verifyStream);
                     
                     if (!blob.GetPlainMd5().AsSpan().SequenceEqual(hash))
                     {
-                        throw new VerificationFailedException(new FileInfo(path), blob);
+                        //throw new VerificationFailedException(file, blob);
                     }
                 }
 

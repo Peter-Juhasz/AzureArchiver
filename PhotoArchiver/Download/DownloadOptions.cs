@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.Azure.Storage.Blob;
 
 namespace PhotoArchiver.Download
@@ -24,8 +25,6 @@ namespace PhotoArchiver.Download
 
 
         public bool Continue { get; set; } = false;
-
-
 
         public bool IsEnabled() => ((StartDate != null && EndDate != null) || Date != null) || Continue;
     }

@@ -1,0 +1,211 @@
+﻿<Page
+    x:Class="PhotoArchiver.Windows.BrowsePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoArchiver.Windows"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tc="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:vm="using:PhotoArchiver.Windows.ViewModels"
+    xmlns:converters="using:PhotoArchiver.Windows.Converters"
+    d:DataContext="{d:DesignInstance Type=vm:MainViewModel, IsDesignTimeCreatable=True}"
+    mc:Ignorable="d"
+    Loaded="Page_Loaded">
+
+    <Page.Resources>
+        <converters:StringNullToVisibilityConverter x:Key="StringNullToVisibilityConverter" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:BooleanToVisibilityNegatedConverter x:Key="BooleanToVisibilityNegatedConverter" />
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Orientation="Horizontal" Background="{ThemeResource SystemControlChromeLowAcrylicWindowBrush}">
+            <DropDownButton Margin="8,0" Background="Transparent">
+                <StackPanel Orientation="Horizontal">
+                    <SymbolIcon Symbol="Calendar" />
+                    <TextBlock Text="By day" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+
+                <DropDownButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem IsEnabled="False" Text="By year" />
+                        <MenuFlyoutItem IsEnabled="False" Text="By month" />
+                        <MenuFlyoutItem IsEnabled="True" Text="By day" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem IsEnabled="False" Text="By people" />
+                        <MenuFlyoutItem IsEnabled="False" Text="By tags" />
+                    </MenuFlyout>
+                </DropDownButton.Flyout>
+            </DropDownButton>
+            <Button Background="Transparent" Click="DateBackButton_Click" Foreground="{ThemeResource AppBarSeparatorForegroundThemeBrush}">
+                <SymbolIcon Symbol="Back" />
+            </Button>
+            <CalendarDatePicker Date="{x:Bind ViewModel.SelectedDate, Mode=TwoWay}" DateChanged="CalendarDatePicker_DateChanged" BorderThickness="0" Background="Transparent" />
+            <Button Background="Transparent" Click="DateForwardButton_Click" Foreground="{ThemeResource AppBarSeparatorForegroundThemeBrush}">
+                <SymbolIcon Symbol="Forward" />
+            </Button>
+            <TextBlock Text="{x:Bind ViewModel.SummaryText, Mode=OneWay}" Foreground="{ThemeResource AppBarItemDisabledForegroundThemeBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <CommandBar DefaultLabelPosition="Right" Grid.Column="1" Background="{ThemeResource SystemControlChromeLowAcrylicWindowBrush}">
+            <AppBarToggleButton Icon="ViewAll" Label="Thumbnails" IsChecked="{x:Bind ViewModel.ShowThumbnails, Mode=TwoWay}" />
+            <AppBarToggleButton x:Name="SelectionModeToggleButton" Icon="Bullets" Label="Select" Checked="SelectionModeToggleButton_Checked" Unchecked="SelectionModeToggleButton_Checked" Visibility="{x:Bind ViewModel.ShowThumbnails, Mode=OneWay}" />
+            <AppBarButton Icon="Download" Label="{x:Bind ViewModel.DownloadSelectedText, Mode=OneWay, FallbackValue='Download selected'}" Click="DownloadSelectedItemsButton_Click" Visibility="{x:Bind ViewModel.ShowDownloadSelected, Mode=OneWay}" />
+            <AppBarButton Icon="Play" Label="{x:Bind ViewModel.QueueSelectedText, Mode=OneWay, FallbackValue='Queue download selected'}" Click="DownloadAllButton_Click" Visibility="{x:Bind ViewModel.ShowQueueSelected, Mode=OneWay}" />
+            <AppBarButton Icon="Download" Label="Download all" Click="DownloadAllButton_Click" Visibility="{x:Bind ViewModel.ShowDownloadAll, Mode=OneWay}" />
+            <AppBarButton Icon="Play" Label="Queue download all" Click="DownloadAllButton_Click" Visibility="{x:Bind ViewModel.ShowQueueAll, Mode=OneWay}" />
+
+            <CommandBar.SecondaryCommands>
+                <AppBarButton Icon="Refresh" Label="Refresh" Click="RefreshButton_Click" />
+            </CommandBar.SecondaryCommands>
+        </CommandBar>
+
+        <SplitView DisplayMode="Inline" Grid.Row="1" Grid.ColumnSpan="2" OpenPaneLength="384" PanePlacement="Right" IsPaneOpen="{x:Bind ViewModel.SelectedItem, Mode=OneWay, Converter={StaticResource NullToBooleanConverter}}">
+            <SplitView.Pane>
+                <StackPanel x:DefaultBindMode="OneWay" Width="384" Background="{ThemeResource AppBarBackgroundThemeBrush}" Padding="{ThemeResource FlyoutContentThemePadding}">
+                    <TextBlock Text="{x:Bind ViewModel.SelectedItem.Name}" Style="{ThemeResource TitleTextBlockStyle}" Margin="0,0,0,16" />
+                    <Image Source="{x:Bind ViewModel.SelectedItem.ThumbnailSource}" Visibility="{x:Bind ViewModel.SelectedItem.HasThumbnail}" MaxHeight="280"></Image>
+                    <Border Height="192" Background="{ThemeResource ButtonDisabledBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.SelectedItem.HasThumbnail, Converter={StaticResource BooleanToVisibilityNegatedConverter}}">
+                        <TextBlock Text="No thumbnail" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource ButtonDisabledForegroundThemeBrush}" />
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Padding="8" Background="{ThemeResource SystemAccentColor}" Visibility="{x:Bind ViewModel.SelectedItem.IsRehydrating}">
+                        <ProgressRing IsActive="True" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Top" />
+                        <StackPanel>
+                            <TextBlock Foreground="White">Rehydration is in progress...</TextBlock>
+                            <TextBlock Foreground="White" Margin="0,8,0,0"><Bold><Run Text="{x:Bind ViewModel.SelectedItem.RehydrationRemainingHours}"></Run> hours remaining</Bold>, started <Run Text="{x:Bind ViewModel.SelectedItem.StartedRehydrateHoursAgo}"></Run> hours ago</TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                    <CommandBar IsDynamicOverflowEnabled="False" DefaultLabelPosition="Bottom" Margin="0,0,0,16">
+                        <AppBarButton Icon="Sync" Label="Rehydrate" Click="RehydrateSelectedButton_Click" Visibility="{x:Bind ViewModel.SelectedItem.CanRehydrate}" />
+                        <AppBarButton Icon="Refresh" Label="Refresh" Click="RefreshSelectedButton_Click" Visibility="{x:Bind ViewModel.SelectedItem.IsRehydrating}" />
+                        <AppBarButton Icon="Redo" Label="Archive" Click="ArchiveSelectedButton_Click" Visibility="{x:Bind ViewModel.SelectedItem.IsAvailable}" />
+                        <AppBarButton Icon="Play" Label="Queue" Click="RehydrateSelectedButton_Click" Visibility="{x:Bind ViewModel.SelectedItem.CanQueue}" />
+                        <AppBarButton Icon="Download" Label="Download" Click="DownloadSelectedButton_Click" IsEnabled="{x:Bind ViewModel.SelectedItem.IsAvailable}" />
+                        <AppBarButton Icon="Share" Label="Share" Click="ShareSelectedButton_Click" Visibility="{x:Bind ViewModel.SelectedItem.IsAvailable}" />
+
+                        <CommandBar.SecondaryCommands>
+                            <AppBarButton Icon="Delete" Label="Delete" Foreground="Red" Click="DeleteSelectedButton_Click" />
+                        </CommandBar.SecondaryCommands>
+                    </CommandBar>
+                    <tc:HeaderedTextBlock Header="Caption" Text="{x:Bind ViewModel.SelectedItem.Caption}" Visibility="{x:Bind ViewModel.SelectedItem.Caption, Converter={StaticResource StringNullToVisibilityConverter}}" />
+                    <tc:HeaderedTextBlock Header="Size" Text="{x:Bind ViewModel.SelectedItem.SizeText}" ToolTipService.ToolTip="{x:Bind ViewModel.SelectedItem.Size}" />
+                    <tc:HeaderedTextBlock Header="Tags" Text="{x:Bind ViewModel.SelectedItem.Tags}" Visibility="{x:Bind ViewModel.SelectedItem.Tags, Converter={StaticResource StringNullToVisibilityConverter}}" />
+                    <tc:HeaderedTextBlock Header="Original File Name" Text="{x:Bind ViewModel.SelectedItem.OriginalFileName}" />
+                    <tc:HeaderedTextBlock Header="MD5 Hash" Text="{x:Bind ViewModel.SelectedItem.Md5}" Visibility="{x:Bind ViewModel.SelectedItem.Md5, Converter={StaticResource StringNullToVisibilityConverter}}" />
+                    <StackPanel Orientation="Horizontal" Visibility="{x:Bind ViewModel.SelectedItem.IsEncrypted, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <SymbolIcon Symbol="ProtectedDocument" ToolTipService.ToolTip="Encrypted" />
+                        <TextBlock Text="Encrypted" Margin="4,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </SplitView.Pane>
+            <SplitView.Content>
+                <Grid>
+                    <tc:DataGrid x:Name="AllBlobsDataGrid" ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False"
+                                 Visibility="{x:Bind ViewModel.ShowThumbnails, Mode=OneWay, Converter={StaticResource BooleanToVisibilityNegatedConverter}}"
+                                 SelectionChanged="AllBlobsDataGrid_SelectionChanged">
+                        <tc:DataGrid.Columns>
+                            <tc:DataGridTemplateColumn Width="48" CanUserReorder="False">
+                                <tc:DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:ItemViewModel">
+                                        <Grid>
+                                            <Image Source="{x:Bind ThumbnailSource}" MaxWidth="32" MaxHeight="24" ToolTipService.Placement="Left" Visibility="{x:Bind HasThumbnail}">
+                                                <ToolTipService.ToolTip>
+                                                    <Image Source="{x:Bind ThumbnailSource}" MaxWidth="128" MaxHeight="128" />
+                                                </ToolTipService.ToolTip>
+                                            </Image>
+                                            <SymbolIcon Symbol="{x:Bind Symbol}" Visibility="{x:Bind HasThumbnail, Converter={StaticResource BooleanToVisibilityNegatedConverter}}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </tc:DataGridTemplateColumn.CellTemplate>
+                            </tc:DataGridTemplateColumn>
+                            <tc:DataGridTextColumn Header="Name" Width="*" Binding="{Binding Name}" SortDirection="Ascending" />
+                            <tc:DataGridTextColumn Header="Taken" Width="192" Binding="{Binding CreatedAt}" CanUserSort="True" />
+                            <tc:DataGridTextColumn Header="State" Binding="{Binding StateText, Mode=OneWay}" CanUserSort="True" />
+                            <tc:DataGridTextColumn Header="Size" Width="112" Binding="{Binding Size, Converter={StaticResource FileSizeConverter}}">
+                                <tc:DataGridTextColumn.CellStyle>
+                                    <Style TargetType="tc:DataGridCell">
+                                        <Setter Property="HorizontalContentAlignment" Value="Right" />
+                                    </Style>
+                                </tc:DataGridTextColumn.CellStyle>
+                            </tc:DataGridTextColumn>
+                            <tc:DataGridTemplateColumn Width="48">
+                                <tc:DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:ItemViewModel">
+                                        <SymbolIcon Symbol="ProtectedDocument" ToolTipService.ToolTip="Encrypted" Visibility="{x:Bind IsEncrypted}" />
+                                    </DataTemplate>
+                                </tc:DataGridTemplateColumn.CellTemplate>
+                            </tc:DataGridTemplateColumn>
+                        </tc:DataGrid.Columns>
+                        <tc:DataGrid.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Rehydrate" Click="RehydrateSelectedItemsButton_Click">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Sync" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Download" Click="DownloadSelectedItemsButton_Click">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Download" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </tc:DataGrid.ContextFlyout>
+                    </tc:DataGrid>
+                    <GridView x:Name="ThumbnailsGridView" ItemsSource="{x:Bind ViewModel.Thumbnails, Mode=OneWay}"
+                                SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                                Padding="8" Visibility="{x:Bind ViewModel.ShowThumbnails, Mode=OneWay}"
+                                SelectionChanged="ThumbnailsGridView_SelectionChanged">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ItemViewModel">
+                                <Border BorderThickness="1" BorderBrush="#dddddd">
+                                    <Image x:Name="Img" Source="{x:Bind ThumbnailSource}" Stretch="UniformToFill" RenderTransformOrigin="0.5,0.5" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="{Binding ElementName=ZoomSlider, Path=Value}" ItemHeight="{Binding ElementName=ZoomSlider, Path=Value}" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerTransitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition />
+                                <AddDeleteThemeTransition />
+                            </TransitionCollection>
+                        </ItemsControl.ItemContainerTransitions>
+                        <GridView.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Rehydrate">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Sync" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Download">
+                                    <MenuFlyoutItem.Icon>
+                                        <SymbolIcon Symbol="Download" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </GridView.ContextFlyout>
+                    </GridView>
+                    <Border x:Name="ZoomSliderContainer" Width="192" Padding="8,4,8,4" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" Visibility="{Binding ShowThumbnails, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            PointerEntered="ZoomSliderContainer_PointerEntered" PointerExited="ZoomSliderContainer_PointerExited">
+                        <Slider x:Name="ZoomSlider" Minimum="16" Maximum="640" Value="192" HorizontalAlignment="Stretch" />
+                    </Border>
+                </Grid>
+            </SplitView.Content>
+        </SplitView>
+    </Grid>
+</Page>

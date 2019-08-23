@@ -14,11 +14,15 @@
         {
         }
 
-        public void Initialize()
+        public void Initialize(long all, long allItems)
         {
         }
 
-        public void SetProgress(long processed, long all)
+        public void SetBytesProgress(long processed)
+        {
+        }
+
+        public void SetItemProgress(long itemsProcessed)
         {
         }
     }

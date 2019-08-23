@@ -1,0 +1,44 @@
+﻿<Page
+    x:Class="PhotoArchiver.Windows.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoArchiver.Windows"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tc="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:converters="using:PhotoArchiver.Windows.Converters"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <converters:NullableIntoToStringConverter x:Key="NullableIntoToStringConverter" />
+    </Page.Resources>
+
+    <StackPanel Margin="16">
+        <TextBlock Text="Settings" Style="{ThemeResource HeaderTextBlockStyle}" />
+
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Text="Storage Account" Style="{ThemeResource SubheaderTextBlockStyle}" />
+            <TextBlock Text="Authentication mode" Margin="{ThemeResource TextControlMarginThemeThickness}" />
+            <ComboBox IsEditable="False" SelectedIndex="0">
+                <ComboBox.Items>
+                    <ComboBoxItem Content="Connection String" />
+                </ComboBox.Items>
+            </ComboBox>
+            <TextBlock Text="Connection string" Margin="{ThemeResource TextControlMarginThemeThickness}" />
+            <PasswordBox Password="{x:Bind StorageOptions.ConnectionString, Mode=TwoWay}" IsPasswordRevealButtonEnabled="True" />
+        </StackPanel>
+
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Text="Thumbnails" Style="{ThemeResource SubheaderTextBlockStyle}" />
+            <TextBlock Foreground="{ThemeResource SystemColorGrayTextBrush}" Margin="{ThemeResource TextControlMarginThemeThickness}">If you archive your photos, you won't be able to browse them unless you generate thumbnails at upload.</TextBlock>
+            <ToggleSwitch IsOn="{x:Bind ThumbnailOptions.Force, Mode=TwoWay}" OffContent="Generate thumbnails" OnContent="Generate thumbnails" />
+            <TextBlock Text="Size" Margin="{ThemeResource TextControlMarginThemeThickness}" />
+            <StackPanel Orientation="Horizontal">
+                <TextBox Text="{x:Bind ThumbnailOptions.MaxWidth, Mode=TwoWay, Converter={StaticResource NullableIntoToStringConverter}}" />
+                <TextBlock Text="x" VerticalAlignment="Center" Margin="8" />
+                <TextBox Text="{x:Bind ThumbnailOptions.MaxHeight, Mode=TwoWay, Converter={StaticResource NullableIntoToStringConverter}}" />
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</Page>

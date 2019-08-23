@@ -7,15 +7,16 @@ using System.Threading.Tasks;
 namespace PhotoArchiver.Upload
 {
     using Extensions;
+    using Files;
 
     public sealed class FileUploadItem : IDisposable
     {
-        public FileUploadItem(FileInfo info)
+        public FileUploadItem(IFile info)
         {
             Info = info;
         }
 
-        public FileInfo Info { get; }
+        public IFile Info { get; }
 
         public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
@@ -27,8 +28,8 @@ namespace PhotoArchiver.Upload
         {
             if (Buffer == null)
             {
-                Buffer = new MemoryStream((int)Info.Length);
-                using var fileStream = Info.OpenRead();
+                Buffer = new MemoryStream((int)await Info.GetSizeAsync());
+                using var fileStream = await Info.OpenReadAsync();
                 await fileStream.CopyToAsync(Buffer);
             }
 

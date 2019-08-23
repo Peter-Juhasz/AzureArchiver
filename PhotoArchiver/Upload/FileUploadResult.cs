@@ -1,21 +1,22 @@
 ﻿using System;
-using System.IO;
 
 namespace PhotoArchiver.Upload
 {
+    using Files;
+
     public class FileUploadResult
     {
-        public FileUploadResult(FileInfo file, UploadResult result, Exception? error)
+        public FileUploadResult(IFile file, UploadResult result, Exception? error)
         {
             File = file;
             Result = result;
             Error = error;
         }
-        public FileUploadResult(FileInfo file, UploadResult result)
+        public FileUploadResult(IFile file, UploadResult result)
             : this(file, result, null)
         { }
 
-        public FileInfo File { get; }
+        public IFile File { get; }
 
         public UploadResult Result { get; }
 
