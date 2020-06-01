@@ -9,7 +9,7 @@ This app uploads and optionally encrypts your files like `IMG_20190727_123456.jp
 Requirements:
  - [Microsoft Azure subscription](https://azure.microsoft.com/)
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
- - [.NET Core 2.2 Runtime](https://dotnet.microsoft.com/download) installed on your machine
+ - [.NET Core 3.1 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself. [Read the best practices.](https://github.com/Peter-Juhasz/AzureArchiver/wiki/Best-Practices)
 
