@@ -1,14 +1,12 @@
 ﻿using System;
 
-using Microsoft.Azure.Storage.Blob;
-
 namespace PhotoArchiver
 {
     using Files;
 
     public class VerificationFailedException : Exception
     {
-        public VerificationFailedException(IFile info, CloudBlockBlob blob)
+        public VerificationFailedException(IFile info, Uri blob)
             : base($"Verification failed for file '{info}'")
         {
             Info = info;
@@ -17,6 +15,6 @@ namespace PhotoArchiver
 
         public IFile Info { get; }
 
-        public CloudBlockBlob Blob { get; }
+        public Uri Blob { get; }
     }
 }

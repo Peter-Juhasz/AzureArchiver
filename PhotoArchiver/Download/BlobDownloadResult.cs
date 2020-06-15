@@ -1,21 +1,21 @@
-﻿using Microsoft.Azure.Storage.Blob;
+﻿using Azure.Storage.Blobs.Models;
 using System;
 
 namespace PhotoArchiver.Download
 {
     public class BlobDownloadResult
     {
-        public BlobDownloadResult(CloudBlockBlob blob, DownloadResult result, Exception? error)
+        public BlobDownloadResult(BlobItem blob, DownloadResult result, Exception? error)
         {
             Blob = blob;
             Result = result;
             Error = error;
         }
-        public BlobDownloadResult(CloudBlockBlob blob, DownloadResult result)
+        public BlobDownloadResult(BlobItem blob, DownloadResult result)
             : this(blob, result, null)
         { }
 
-        public CloudBlockBlob Blob { get; }
+        public BlobItem Blob { get; }
         public DownloadResult Result { get; }
         public Exception? Error { get; }
     }

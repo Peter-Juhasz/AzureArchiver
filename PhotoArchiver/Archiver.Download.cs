@@ -9,10 +9,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
-using Microsoft.Azure.Storage.Core.Util;
-using Microsoft.Azure.Storage.RetryPolicies;
+using Azure;
+using Azure.Storage;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using Microsoft.Extensions.Logging;
 
 namespace PhotoArchiver
@@ -21,7 +22,6 @@ namespace PhotoArchiver
     using Download;
     using Extensions;
     using Files;
-    using KeyVault;
     using Progress;
     using Storage;
 
@@ -32,28 +32,24 @@ namespace PhotoArchiver
             // initialize
             progressIndicator.ToIndeterminateState();
 
-            var container = Client.GetContainerReference(StorageOptions.Container);
-
-            if (KeyVaultOptions.IsEnabled())
-            {
-                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
-            }
+            var container = Client.GetBlobContainerClient(StorageOptions.Container);
 
             // collect blobs to download
             var all = await CollectBlobsForDownloadAsync(options, container);
 
-            return await RetrieveAsync(all, directory, options, progressIndicator, cancellationToken);
+            return await RetrieveAsync(container, all, directory, options, progressIndicator, cancellationToken);
         }
 
-        public async Task<RetrieveResult> RetrieveAsync(IReadOnlyList<CloudBlockBlob> blobs, IDirectory directory, DownloadOptions options, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
+        public async Task<RetrieveResult> RetrieveAsync(BlobContainerClient container, IReadOnlyList<BlobItem> blobs, IDirectory directory, DownloadOptions options, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
         {
             var results = new List<BlobDownloadResult>();
 
             // download
             var processedCount = 0;
             var processedBytes = 0L;
-            var allBytes = blobs.Sum(b => b.Properties.Length);
-            progressIndicator.Initialize(allBytes, blobs.Count);
+            var allBytes = blobs.Sum(b => b.Properties.ContentLength ?? 0);
+            var count = blobs.Count;
+            progressIndicator.Initialize(allBytes, count);
             progressIndicator.SetBytesProgress(processedBytes);
             foreach (var blob in blobs)
             {
@@ -63,11 +59,13 @@ namespace PhotoArchiver
 
                 try
                 {
+                    var blobClient = container.GetBlockBlobClient(blob.Name);
+
                     // rehydrate archived blob
-                    if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
+                    if (blob.Properties.AccessTier == AccessTier.Archive)
                     {
                         Logger.LogInformation($"Rehydrate '{blob}'...");
-                        await blob.SetStandardBlobTierAsync(options.RehydrationTier);
+                        await blobClient.SetAccessTierAsync(options.RehydrationTier);
                         CostEstimator.AddRead();
                         CostEstimator.AddWrite();
 
@@ -79,10 +77,9 @@ namespace PhotoArchiver
 
                     // download
                     var targetFile = await directory.CreateFileAsync(Path.GetFileName(blob.Name));
-                    var progress = new StorageProgressShim(progressIndicator, processedBytes);
-                    result = await DownloadCoreAsync(targetFile, blob, Options.Verify, progress, cancellationToken);
+                    result = await DownloadCoreAsync(targetFile, blob, blobClient, Options.Verify, cancellationToken);
                 }
-                catch (StorageException ex)
+                catch (RequestFailedException ex)
                 {
                     Logger.LogError(ex, ex.Message);
                     result = DownloadResult.Failed;
@@ -91,7 +88,7 @@ namespace PhotoArchiver
                 {
                     results.Add(new BlobDownloadResult(blob, result));
                     processedCount++;
-                    processedBytes += blob.Properties.Length;
+                    processedBytes += blob.Properties.ContentLength ?? 0;
                     progressIndicator.SetItemProgress(processedCount);
                     progressIndicator.SetBytesProgress(processedBytes);
                 }
@@ -101,7 +98,7 @@ namespace PhotoArchiver
             return new RetrieveResult(results);
         }
 
-        private async Task<List<CloudBlockBlob>> CollectBlobsForDownloadAsync(DownloadOptions options, CloudBlobContainer container)
+        private async Task<IReadOnlyList<BlobItem>> CollectBlobsForDownloadAsync(DownloadOptions options, BlobContainerClient container)
         {
             if (options.Date != null && options.StartDate == null && options.EndDate == null)
             {
@@ -109,38 +106,24 @@ namespace PhotoArchiver
                 options.EndDate = options.Date;
             }
 
-            var all = new List<CloudBlockBlob>();
+            var all = new List<BlobItem>();
             for (var date = options.StartDate!.Value; date <= options.EndDate!.Value; date = date.AddDays(1))
             {
                 Logger.LogTrace($"Listing blobs by date '{date}'...");
                 CostEstimator.AddListOrCreateContainer();
 
-                var directory = container.GetDirectoryReference(String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date));
+                var directory = String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date);
 
-                BlobContinuationToken? continuationToken = null;
-                do
-                {
-                    var page = await directory.ListBlobsSegmentedAsync(
-                        useFlatBlobListing: true,
-                        BlobListingDetails.Metadata,
-                        maxResults: null,
-                        continuationToken,
-                        options: null,
-                        operationContext: null
-                    );
-
-                    var matching = page.Results.OfType<CloudBlockBlob>().Where(b => Match(b, options));
-                    all.AddRange(matching);
-
-                    continuationToken = page.ContinuationToken;
-                } while (continuationToken != null);
+                var page = await container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, directory)
+                    .Where(b => Match(b, options))
+                    .ToListAsync();
+                all.AddRange(page);
             }
-
             return all;
         }
 
         [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-        public async Task<RetrieveResult> ContinueAsync(CancellationToken cancellationToken)
+        public async Task<RetrieveResult> ContinueAsync(DownloadOptions options, CancellationToken cancellationToken)
         {
             // initialize
             ProgressIndicator.ToIndeterminateState();
@@ -161,7 +144,8 @@ namespace PhotoArchiver
                 // process
                 foreach (var item in session.PendingItems)
                 {
-                    var blob = new CloudBlockBlob(item.Blob, Client);
+                    BlobItem blob = null; // TODO: fix
+                    var client = new BlockBlobClient(item.Blob, GetStorageSharedKeyCredential());
                     var path = item.Path;
 
                     DownloadResult result = default;
@@ -171,12 +155,12 @@ namespace PhotoArchiver
                         // download
                         IFile file = null; // TODO: fix
                         var progress = new StorageProgressShim(null, 0L); // TODO: fix
-                        result = await DownloadCoreAsync(file, blob, Options.Verify, progress, cancellationToken);
+                        result = await DownloadCoreAsync(file, blob, client, Options.Verify, cancellationToken);
 
                         // archive
-                        if (StorageOptions.Archive)
+                        if (options.Archive)
                         {
-                            await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
+                            await client.SetAccessTierAsync(AccessTier.Archive);
                             CostEstimator.AddRead();
                             CostEstimator.AddWrite();
                         }
@@ -211,50 +195,40 @@ namespace PhotoArchiver
             return new RetrieveResult(results);
         }
 
-        private async Task<DownloadResult> DownloadCoreAsync(IFile file, CloudBlockBlob blob, bool verify, IProgress<StorageProgress> progress, CancellationToken cancellationToken)
+        private async Task<DownloadResult> DownloadCoreAsync(IFile file, BlobItem blob, BlockBlobClient client, bool verify, CancellationToken cancellationToken)
         {
-            // prepare
-            var requestOptions = new BlobRequestOptions
-            {
-                LocationMode = LocationMode.PrimaryThenSecondary,
-                DisableContentMD5Validation = false,
-            };
-
             // decryption
-            if (blob.IsEncrypted())
+            if (blob.IsObsoleteEncrypted())
             {
-                requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
+                throw new NotSupportedException("Encryption is obsolete and not supported by the new Azure storage library.");
             }
 
             // download
             try
             {
                 using var stream = await file.OpenWriteAsync();
-                await blob.DownloadToStreamAsync(
-                    stream,
-                    AccessCondition.GenerateEmptyCondition(),
-                    requestOptions,
-                    null,
-                    progress,
-                    cancellationToken
-                );
-                CostEstimator.AddRead(blob.Properties.Length);
+                await client.DownloadToAsync(stream, cancellationToken);
+                CostEstimator.AddRead(blob.Properties.ContentLength ?? 0);
 
                 // verify
                 if (verify)
                 {
-                    if (blob.Properties.ContentMD5 == null)
+                    // acquire file hash
+                    var blobHash = blob.Properties.ContentHash ?? (await client.GetPropertiesAsync()).Value.ContentHash;
+                    if (blobHash == null)
                     {
-                        await blob.FetchAttributesAsync();
+                        throw new VerificationFailedException(file, client.Uri);
                     }
 
+                    // compute downloaded file hash
                     using var verifyStream = await file.OpenReadAsync();
                     using var hashAlgorithm = MD5.Create();
                     var hash = hashAlgorithm.ComputeHash(verifyStream);
                     
-                    if (!blob.GetPlainMd5().AsSpan().SequenceEqual(hash))
+                    // compare
+                    if (!blobHash.AsSpan().SequenceEqual(hash))
                     {
-                        //throw new VerificationFailedException(file, blob);
+                        throw new VerificationFailedException(file, client.Uri);
                     }
                 }
 
@@ -262,20 +236,9 @@ namespace PhotoArchiver
             }
 
             // not rehydrated yet
-            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 400)
+            catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobBeingRehydrated)
             {
-                await blob.FetchAttributesAsync();
-                CostEstimator.AddOther();
-
-                if (blob.Properties.RehydrationStatus == RehydrationStatus.PendingToCool ||
-                    blob.Properties.RehydrationStatus == RehydrationStatus.PendingToHot)
-                {
-                    return DownloadResult.Pending;
-                }
-                else
-                {
-                    return DownloadResult.Failed;
-                }
+                return DownloadResult.Pending;
             }
 
             // already exists
@@ -285,7 +248,7 @@ namespace PhotoArchiver
             }
         }
 
-        private static bool Match(CloudBlockBlob blob, DownloadOptions options)
+        private static bool Match(BlobItem blob, DownloadOptions options)
         {
             if (options.Tags?.Any() ?? false)
             {

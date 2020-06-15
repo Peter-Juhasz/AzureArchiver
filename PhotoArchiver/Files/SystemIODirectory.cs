@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace PhotoArchiver.Files
@@ -36,9 +37,9 @@ namespace PhotoArchiver.Files
             return Task.FromResult(new SystemIOFile(new FileInfo(System.IO.Path.Combine(Directory.FullName, name))) as IFile);
         }
 
-        public Task<IReadOnlyList<IFile>> GetFilesAsync()
+        public async Task<IReadOnlyList<IFile>> GetFilesAsync()
         {
-            throw new NotImplementedException();
+            return Directory.GetFiles("*", SearchOption.AllDirectories).Select(f => new SystemIOFile(f)).ToList();
         }
     }
 }

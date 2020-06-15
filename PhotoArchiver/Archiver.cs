@@ -2,25 +2,24 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Azure.Storage.Blobs;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.Face;
-using Microsoft.Azure.KeyVault.Core;
-using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
 namespace PhotoArchiver
 {
+    using Azure.Storage;
     using ComputerVision;
     using Costs;
     using Deduplication;
     using Face;
-    using KeyVault;
     using Progress;
     using Storage;
+    using System.Linq;
     using Thumbnails;
     using Upload;
 
@@ -30,12 +29,10 @@ namespace PhotoArchiver
             IOptions<UploadOptions> options,
             IOptions<StorageOptions> storageOptions,
             IOptions<ThumbnailOptions> thumbnailOptions,
-            IOptions<KeyVaultOptions> keyVaultOptions,
             IOptions<ComputerVisionOptions> computerVisionOptions,
             IOptions<FaceOptions> faceOptions,
-            CloudBlobClient client,
+            BlobServiceClient client,
             IThumbnailGenerator thumbnailGenerator,
-            IKeyResolver keyResolver,
             IDeduplicationService deduplicationService,
             IComputerVisionClient computerVisionClient,
             IFaceClient faceClient,
@@ -46,13 +43,11 @@ namespace PhotoArchiver
         {
             Options = options.Value;
             StorageOptions = storageOptions.Value;
-            KeyVaultOptions = keyVaultOptions.Value;
             ThumbnailOptions = thumbnailOptions.Value;
             ComputerVisionOptions = computerVisionOptions.Value;
             FaceOptions = faceOptions.Value;
             Client = client;
             ThumbnailGenerator = thumbnailGenerator;
-            KeyResolver = keyResolver;
             DeduplicationService = deduplicationService;
             ComputerVisionClient = computerVisionClient;
             FaceClient = faceClient;
@@ -63,19 +58,23 @@ namespace PhotoArchiver
 
         protected UploadOptions Options { get; }
         protected StorageOptions StorageOptions { get; }
-        protected KeyVaultOptions KeyVaultOptions { get; }
         protected ThumbnailOptions ThumbnailOptions { get; }
         protected ComputerVisionOptions ComputerVisionOptions { get; }
         protected FaceOptions FaceOptions { get; }
-        protected CloudBlobClient Client { get; }
+        protected BlobServiceClient Client { get; }
         protected IThumbnailGenerator ThumbnailGenerator { get; }
-        protected IKeyResolver KeyResolver { get; }
         protected IDeduplicationService DeduplicationService { get; }
         protected IComputerVisionClient ComputerVisionClient { get; }
         protected IFaceClient FaceClient { get; }
         protected CostEstimator CostEstimator { get; }
         protected IProgressIndicator ProgressIndicator { get; }
         protected ILogger<Archiver> Logger { get; }
+
+        protected StorageSharedKeyCredential GetStorageSharedKeyCredential()
+        {
+            var props = StorageOptions.ConnectionString!.Split(';').ToDictionary(p => p.Split('=')[0].Trim(), p => p.Split('=')[1].Trim());
+            return new StorageSharedKeyCredential(props["AccountName"], props["AccountKey"]);
+        }
 
         private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -110,7 +109,5 @@ namespace PhotoArchiver
             ".thm", // Camera thumbnail
             ".tmp",
         };
-
-        private IKey? _key = null;
     }
 }

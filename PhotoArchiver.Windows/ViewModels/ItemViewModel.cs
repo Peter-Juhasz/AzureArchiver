@@ -1,5 +1,6 @@
-﻿using Microsoft.Azure.Storage.Blob;
-using PhotoArchiver.Extensions;
+﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using System;
 using System.ComponentModel;
 using System.Globalization;
@@ -11,7 +12,13 @@ namespace PhotoArchiver.Windows.ViewModels
 {
     public class ItemViewModel : INotifyPropertyChanged
     {
-        public CloudBlockBlob Blob { get; set; }
+        public BlobContainerClient BlobContainer { get; set; }
+
+        public BlobItem Blob { get; set; }
+
+        public BlockBlobClient BlobClient => BlobContainer.GetBlockBlobClient(Blob.Name);
+
+        public BlobProperties BlobProperties { get; set; }
 
         public string Name { get; set; }
 
@@ -19,7 +26,11 @@ namespace PhotoArchiver.Windows.ViewModels
 
         public ImageSource ThumbnailSource { get; set; }
 
-        public CloudBlockBlob ThumbnailBlob { get; set; }
+        public BlobContainerClient ThumbnailBlobContainer { get; set; }
+
+        public BlobItem ThumbnailBlob { get; set; }
+
+        public BlockBlobClient ThumbnailBlobClient => ThumbnailBlobContainer.GetBlockBlobClient(ThumbnailBlob.Name);
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -67,6 +78,11 @@ namespace PhotoArchiver.Windows.ViewModels
 
         private bool TryGetMetadata(string key, out string value)
         {
+            if (BlobProperties != null && BlobProperties.Metadata.TryGetValue(key, out value))
+            {
+                return true;
+            }
+
             if (Blob.Metadata.TryGetValue(key, out value))
             {
                 return true;
@@ -91,7 +107,7 @@ namespace PhotoArchiver.Windows.ViewModels
                     return Int64.Parse(fileSize, CultureInfo.InvariantCulture);
                 }
 
-                return Blob.Properties.Length;
+                return Blob.Properties.ContentLength ?? 0;
             }
         }
 
@@ -104,7 +120,7 @@ namespace PhotoArchiver.Windows.ViewModels
                     return BytesToString(Int64.Parse(fileSize, CultureInfo.InvariantCulture));
                 }
 
-                return BytesToString(Blob.Properties.Length);
+                return BytesToString(Blob.Properties.ContentLength ?? 0);
             }
         }
 
@@ -160,14 +176,12 @@ namespace PhotoArchiver.Windows.ViewModels
             }
         }
 
-        public bool IsEncrypted => Blob.IsEncrypted();
-
-        public string Md5 => ToHexString(Blob.GetPlainMd5());
+        public string Md5 => Blob.Properties.ContentHash is byte[] hash ? ToHexString(hash) : String.Empty;
 
 
-        public bool IsRehydrating => Blob.Properties.RehydrationStatus == RehydrationStatus.PendingToHot || Blob.Properties.RehydrationStatus == RehydrationStatus.PendingToCool;
+        public bool IsRehydrating => (BlobProperties?.ArchiveStatus ?? Blob.Properties.ArchiveStatus?.ToString()) != null;
 
-        public bool IsAvailable => Blob.Properties.StandardBlobTier != StandardBlobTier.Archive;
+        public bool IsAvailable => (BlobProperties?.AccessTier ?? Blob.Properties.AccessTier?.ToString()) != AccessTier.Archive.ToString();
 
         public bool CanRehydrate => !IsAvailable && !IsRehydrating;
 
@@ -182,7 +196,7 @@ namespace PhotoArchiver.Windows.ViewModels
                     return null;
                 }
 
-                return (int)Math.Floor((DateTimeOffset.Now - Blob.Properties.BlobTierLastModifiedTime.Value).TotalHours);
+                return (int)Math.Floor((DateTimeOffset.Now - (BlobProperties?.AccessTierChangedOn ?? Blob.Properties.AccessTierChangedOn.Value)).TotalHours);
             }
         }
 
@@ -195,7 +209,7 @@ namespace PhotoArchiver.Windows.ViewModels
                     return null;
                 }
 
-                return (int)Math.Ceiling((TimeSpan.FromHours(15) - (DateTimeOffset.Now - Blob.Properties.BlobTierLastModifiedTime.Value)).TotalHours);
+                return (int)Math.Ceiling((TimeSpan.FromHours(15) - (DateTimeOffset.Now - (BlobProperties?.AccessTierChangedOn ?? Blob.Properties.AccessTierChangedOn.Value))).TotalHours);
             }
         }
         

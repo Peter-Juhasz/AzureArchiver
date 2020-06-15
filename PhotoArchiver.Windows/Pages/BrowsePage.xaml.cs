@@ -1,9 +1,9 @@
-﻿using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
-using Microsoft.Azure.Storage.RetryPolicies;
+﻿using Azure.Storage;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.Toolkit.Uwp.UI.Controls;
 using PhotoArchiver.Download;
 using PhotoArchiver.Storage;
 using PhotoArchiver.Thumbnails;
@@ -17,18 +17,17 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
-using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
 using Windows.UI;
+using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
-using Windows.UI.Xaml.Navigation;
 
 namespace PhotoArchiver.Windows
 {
@@ -36,7 +35,7 @@ namespace PhotoArchiver.Windows
     {
         public BrowsePage()
         {
-            Client = App.ServiceProvider.GetRequiredService<CloudBlobClient>();
+            Client = App.ServiceProvider.GetRequiredService<BlobServiceClient>();
             ThumbnailOptions = App.ServiceProvider.GetRequiredService<IOptions<ThumbnailOptions>>().Value;
             StorageOptions = App.ServiceProvider.GetRequiredService<IOptions<StorageOptions>>().Value;
             TaskStatusManager = App.ServiceProvider.GetRequiredService<TaskStatusManager>();
@@ -66,7 +65,7 @@ namespace PhotoArchiver.Windows
 
             if (ViewModel.SelectedItem != null)
             {
-                ApplicationData.Current.LocalSettings.Values["Browse.SelectedItem.Blob.Uri"] = ViewModel.SelectedItem.Blob.Uri.ToString();
+                ApplicationData.Current.LocalSettings.Values["Browse.SelectedItem.Blob.Name"] = ViewModel.SelectedItem.Blob.Name.ToString();
             }
         }
 
@@ -80,24 +79,20 @@ namespace PhotoArchiver.Windows
                 
                 if (ViewModel.SelectedItem.ThumbnailBlob != null)
                 {
-                    using (var ts = await ViewModel.SelectedItem.ThumbnailBlob.OpenReadAsync())
-                    {
-                        var buffer = await ts.BufferAsync();
-                        args.Request.Data.Properties.Thumbnail = RandomAccessStreamReference.CreateFromStream(buffer.AsRandomAccessStream());
-                    }
+                    var thumbnailBuffer = new MemoryStream();
+                    await ViewModel.SelectedItem.ThumbnailBlobClient.DownloadToAsync(thumbnailBuffer);
+                    args.Request.Data.Properties.Thumbnail = RandomAccessStreamReference.CreateFromStream(thumbnailBuffer.Rewind().AsRandomAccessStream());
                 }
 
-                using (var stream = await ViewModel.SelectedItem.Blob.OpenReadAsync())
-                {
-                    var buffer = await stream.BufferAsync();
-                    args.Request.Data.SetBitmap(RandomAccessStreamReference.CreateFromStream(buffer.AsRandomAccessStream()));
-                }
+                var buffer = new MemoryStream();
+                await ViewModel.SelectedItem.BlobClient.DownloadToAsync(buffer);
+                args.Request.Data.SetBitmap(RandomAccessStreamReference.CreateFromStream(buffer.Rewind().AsRandomAccessStream()));
 
                 deferral.Complete();
             }
         }
 
-        public CloudBlobClient Client { get; }
+        public BlobServiceClient Client { get; }
         public ThumbnailOptions ThumbnailOptions { get; }
         public StorageOptions StorageOptions { get; }
         public TaskStatusManager TaskStatusManager { get; }
@@ -112,60 +107,58 @@ namespace PhotoArchiver.Windows
             await LoadThumbnailsAsync();
         }
 
+        private StorageSharedKeyCredential GetStorageSharedKeyCredential()
+        {
+            var props = StorageOptions.ConnectionString.Split(';').ToDictionary(p => p.Substring(0, p.IndexOf('=')).Trim(), p => p.Substring(p.IndexOf('=') + 1).Trim());
+            return new StorageSharedKeyCredential(props["AccountName"], props["AccountKey"]);
+        }
+
         private async Task LoadThumbnailsAsync()
         {
-            var thumbnailsContainer = Client.GetContainerReference(ThumbnailOptions.Container);
-            var thumbnailsSignature = thumbnailsContainer.GetSharedAccessSignature(new SharedAccessBlobPolicy
+            var thumbnailsContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
+
+            var builder = new BlobSasBuilder()
             {
-                Permissions = SharedAccessBlobPermissions.Read,
-                SharedAccessExpiryTime = DateTimeOffset.Now.Date.AddDays(2),
-            });
-            var requestOptions = new BlobRequestOptions
-            {
-                LocationMode = LocationMode.PrimaryThenSecondary,
+                BlobContainerName = thumbnailsContainer.Name,
+                ExpiresOn = DateTimeOffset.Now.Date.AddDays(2),
             };
+            builder.SetPermissions(BlobAccountSasPermissions.Read);
+            var thumbnailsSignature = builder.ToSasQueryParameters(GetStorageSharedKeyCredential()).ToString();
 
-            var thumbnails = await thumbnailsContainer.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, ViewModel.SelectedDate.LocalDateTime)).ListBlobsSegmentedAsync(
-                useFlatBlobListing: true,
-                BlobListingDetails.Metadata,
-                maxResults: null,
-                currentToken: null,
-                requestOptions,
-                null
-            );
+            var directory = String.Format(StorageOptions.DirectoryFormat, ViewModel.SelectedDate.LocalDateTime);
+            var thumbnails = await thumbnailsContainer
+                .GetBlobsAsync(BlobTraits.Metadata, prefix: directory)
+                .ToListAsync();
 
-            var container = Client.GetContainerReference(StorageOptions.Container);
-            var blobs = await container.GetDirectoryReference(String.Format(StorageOptions.DirectoryFormat, ViewModel.SelectedDate.LocalDateTime)).ListBlobsSegmentedAsync(
-                useFlatBlobListing: true,
-                BlobListingDetails.Metadata,
-                maxResults: null,
-                currentToken: null,
-                requestOptions,
-                null
-            );
+            var container = Client.GetBlobContainerClient(StorageOptions.Container);
+            var blobs = await container
+                .GetBlobsAsync(BlobTraits.Metadata, prefix: directory)
+                .ToListAsync();
 
-            var items = blobs.Results.OfType<CloudBlockBlob>().Select(b => new ItemViewModel
+            var items = blobs.Select(b => new ItemViewModel
             {
+                BlobContainer = container,
                 Blob = b,
                 Name = Path.GetFileName(b.Name),
             }).ToList();
 
             foreach (var item in items)
             {
-                var thumbnail = thumbnails.Results.OfType<CloudBlockBlob>().SingleOrDefault(b => b.Name == item.Blob.Name);
+                var thumbnail = thumbnails.SingleOrDefault(b => b.Name == item.Blob.Name);
                 if (thumbnail != null)
                 {
+                    item.ThumbnailBlobContainer = thumbnailsContainer;
                     item.ThumbnailBlob = thumbnail;
-                    item.ThumbnailSource = new BitmapImage(new Uri(thumbnail.Uri + thumbnailsSignature));
+                    item.ThumbnailSource = new BitmapImage(new Uri(item.ThumbnailBlobClient.Uri + "?" + thumbnailsSignature));
                 }
             }
 
             ViewModel.Items = items;
             ViewModel.SelectedItem = null;
 
-            if (ApplicationData.Current.LocalSettings.Values.TryGetValue("Browse.SelectedItem.Blob.Uri", out var uri))
+            if (ApplicationData.Current.LocalSettings.Values.TryGetValue("Browse.SelectedItem.Blob.Name", out var uri))
             {
-                var any = items.FirstOrDefault(i => i.Blob.Uri.ToString() == uri.ToString());
+                var any = items.FirstOrDefault(i => i.Blob.Name == uri.ToString());
                 if (any != null)
                 {
                     ViewModel.SelectedItem = any;
@@ -211,8 +204,9 @@ namespace PhotoArchiver.Windows
                 var progressIndicator = new UploadTaskViewModel();
                 TaskStatusManager.Add(progressIndicator);
 
+                var container = Client.GetBlobContainerClient(StorageOptions.Container);
                 var blobs = ViewModel.SelectedItems.Select(i => i.Blob).ToList();
-                Task.Run(() => archiver.RetrieveAsync(blobs, new WindowsStorageFolder(folder), args, progressIndicator, progressIndicator.CancellationToken));
+                Task.Run(() => archiver.RetrieveAsync(container, blobs, new WindowsStorageFolder(folder), args, progressIndicator, progressIndicator.CancellationToken));
                 Frame.Navigate(typeof(RehydratingPage));
             }
         }
@@ -265,23 +259,23 @@ namespace PhotoArchiver.Windows
         private async void RehydrateSelectedButton_Click(object sender, RoutedEventArgs e)
         {
             var item = ViewModel.SelectedItem;
-            await item.Blob.SetStandardBlobTierAsync(StandardBlobTier.Hot);
-            await item.Blob.FetchAttributesAsync();
+            await item.BlobClient.SetAccessTierAsync(AccessTier.Hot);
+            item.BlobProperties = await item.BlobClient.GetPropertiesAsync();
             item.RaiseChanged();
         }
 
         private async void ArchiveSelectedButton_Click(object sender, RoutedEventArgs e)
         {
             var item = ViewModel.SelectedItem;
-            await item.Blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
-            await item.Blob.FetchAttributesAsync();
+            await item.BlobClient.SetAccessTierAsync(AccessTier.Archive);
+            item.BlobProperties = await item.BlobClient.GetPropertiesAsync();
             item.RaiseChanged();
         }
 
         private async void RefreshSelectedButton_Click(object sender, RoutedEventArgs e)
         {
             var item = ViewModel.SelectedItem;
-            await item.Blob.FetchAttributesAsync();
+            item.BlobProperties = await item.BlobClient.GetPropertiesAsync();
             item.RaiseChanged();
         }
 
@@ -299,12 +293,12 @@ namespace PhotoArchiver.Windows
             {
                 if (item.ThumbnailBlob != null)
                 {
-                    await item.ThumbnailBlob.DeleteAsync();
+                    await item.ThumbnailBlobClient.DeleteAsync();
                 }
 
-                await item.Blob.DeleteAsync();
+                await item.BlobClient.DeleteAsync();
 
-                ViewModel.Items = ViewModel.Items.Where(i => i.Blob.Uri != item.Blob.Uri).ToList();
+                ViewModel.Items = ViewModel.Items.Where(i => i.Blob.Name != item.Blob.Name).ToList();
             }
         }
 
@@ -331,25 +325,21 @@ namespace PhotoArchiver.Windows
             }
 
             var progress = new UploadTaskViewModel();
-            progress.Maximum = ViewModel.SelectedItem.Blob.Properties.Length;
+            progress.Maximum = ViewModel.SelectedItem.Blob.Properties.ContentLength ?? 0;
             TaskStatusManager.Add(progress);
 
-            var blob = ViewModel.SelectedItem.Blob;
+            var blob = ViewModel.SelectedItem.BlobClient;
             Task.Run(async () =>
             {
                 using (var stream = await file.OpenStreamForWriteAsync())
                 {
-                    await blob.DownloadToStreamAsync(
-                        stream,
-                        AccessCondition.GenerateEmptyCondition(),
-                        new BlobRequestOptions
-                        {
-                            LocationMode = LocationMode.PrimaryThenSecondary,
-                        },
-                        null,
-                        progress,
-                        progress.CancellationToken
-                    );
+                    await blob.DownloadToAsync(stream, cancellationToken: progress.CancellationToken);
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        progress.Value = progress.Maximum;
+                        progress.ProcessedItemsCount = 1;
+                        progress.IsFinished = true;
+                    });
                 }
             });
         }
@@ -439,8 +429,8 @@ namespace PhotoArchiver.Windows
         {
             foreach (var item in ViewModel.SelectedItems)
             {
-                await item.Blob.SetStandardBlobTierAsync(StandardBlobTier.Hot);
-                await item.Blob.FetchAttributesAsync();
+                await item.BlobClient.SetAccessTierAsync(AccessTier.Hot);
+                item.BlobProperties = await item.BlobClient.GetPropertiesAsync();
                 item.RaiseChanged();
             }
         }

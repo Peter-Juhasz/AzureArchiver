@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace PhotoArchiver.Deduplication
 {
     using Costs;
-    using Extensions;
 
     public class DeduplicationService : IDeduplicationService
     {
@@ -19,59 +19,55 @@ namespace PhotoArchiver.Deduplication
 
         protected CostEstimator CostEstimator { get; }
 
-        protected IDictionary<string, HashSet<string>> Store { get; } = new Dictionary<string, HashSet<string>>();
+        protected IDictionary<string, HashSet<byte[]>> Store { get; } = new Dictionary<string, HashSet<byte[]>>();
 
-        public async Task<bool> ContainsAsync(CloudBlobDirectory directory, byte[] hash)
+        public async Task<bool> ContainsAsync(BlobContainerClient container, string directory, byte[] hash)
         {
-            var key = directory.Uri.ToString();
+            var key = directory;
             if (!Store.TryGetValue(key, out var set))
             {
-                set = await GetHashes(directory);
+                set = await GetHashes(container, directory);
                 Store.Add(key, set);
             }
 
-            var encoded = Convert.ToBase64String(hash);
-            return set.Contains(encoded);
+            return set.Contains(hash);
         }
 
-        public void Add(CloudBlobDirectory directory, ReadOnlySpan<byte> hash)
+        public void Add(string directory, ReadOnlySpan<byte> hash)
         {
-            var key = directory.Uri.ToString();
-            var encoded = Convert.ToBase64String(hash.ToArray());
-            Store[key].Add(encoded);
+            var key = directory;
+            Store[key].Add(hash.ToArray());
+        }
+
+        private static async Task<HashSet<byte[]>> GetHashes(BlobContainerClient container, string directory)
+        {
+            return await container.GetBlobsAsync(
+                traits: BlobTraits.None,
+                prefix: directory
+            )
+                .Select(b => b.Properties.ContentHash)
+                .Where(b => b != null)
+                .ToHashSetAsync(new ByteArrayComparer());
         }
 
 
-        private async Task<HashSet<string>> GetHashes(CloudBlobDirectory directory)
+        class ByteArrayComparer : IEqualityComparer<byte[]>
         {
-            var set = new HashSet<string>();
-
-            BlobContinuationToken? continuationToken = null;
-
-            do
+            public bool Equals(byte[] a, byte[] b)
             {
-                var page = await directory.ListBlobsSegmentedAsync(
-                    useFlatBlobListing: true,
-                    BlobListingDetails.Metadata,
-                    maxResults: null,
-                    currentToken: continuationToken,
-                    options: null,
-                    operationContext: null
-                );
-                CostEstimator.AddListOrCreateContainer();
-
-                foreach (var item in page.Results.OfType<CloudBlockBlob>())
-                {
-                    var hash = Convert.ToBase64String(item.GetPlainMd5());
-                        
-                    set.Add(hash);
-                }
-
-                continuationToken = page.ContinuationToken;
+                if (a.Length != b.Length) return false;
+                for (int i = 0; i < a.Length; i++)
+                    if (a[i] != b[i]) return false;
+                return true;
             }
-            while (continuationToken != null);
 
-            return set;
+            public int GetHashCode(byte[] a)
+            {
+                uint b = 0;
+                for (int i = 0; i < a.Length; i++)
+                    b = ((b << 23) | (b >> 9)) ^ a[i];
+                return unchecked((int)b);
+            }
         }
     }
 }

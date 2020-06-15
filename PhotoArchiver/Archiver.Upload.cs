@@ -7,12 +7,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
 using Microsoft.Azure.CognitiveServices.Vision.Face;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
-using Microsoft.Azure.Storage.RetryPolicies;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 
@@ -27,7 +28,6 @@ namespace PhotoArchiver
     using Face;
     using Files;
     using Formats;
-    using KeyVault;
     using Progress;
     using Storage;
     using Thumbnails;
@@ -55,7 +55,7 @@ namespace PhotoArchiver
             {
                 query = query.Take(Options.Take.Value);
             }
-
+            
             return await ArchiveAsync(query.ToList(), progressIndicator, cancellationToken);
         }
 
@@ -64,15 +64,10 @@ namespace PhotoArchiver
         {
             // initialize
             progressIndicator.ToIndeterminateState();
-            var container = Client.GetContainerReference(StorageOptions.Container);
+            var container = Client.GetBlobContainerClient(StorageOptions.Container);
             var lastDirectoryName = null as string;
 
             var results = new List<FileUploadResult>();
-
-            if (KeyVaultOptions.IsEnabled())
-            {
-                _key = await KeyResolver.ResolveKeyAsync(KeyVaultOptions.KeyIdentifier!.ToString(), cancellationToken);
-            }
 
             // estimate count
             var processedCount = 0;
@@ -119,7 +114,7 @@ namespace PhotoArchiver
                     }
 
                     // blob
-                    var blobDirectory = container.GetDirectoryReference(String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date));
+                    var blobDirectory = String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date);
                     item.Metadata.Add("OriginalFileName", file.Path.RemoveDiacritics());
                     item.Metadata.Add("CreatedAt", date.Value.ToString("o", CultureInfo.InvariantCulture));
                     item.Metadata.Add("OriginalFileSize", (await file.GetSizeAsync()).ToString(CultureInfo.InvariantCulture));
@@ -130,7 +125,7 @@ namespace PhotoArchiver
                         Logger.LogTrace($"Computing hash for {file}...");
                         var hash = await item.ComputeHashAsync();
 
-                        if (await DeduplicationService.ContainsAsync(blobDirectory, hash))
+                        if (await DeduplicationService.ContainsAsync(container, blobDirectory, hash))
                         {
                             result = UploadResult.AlreadyExists;
                         }
@@ -193,25 +188,18 @@ namespace PhotoArchiver
                         }
                     }
 
-                    var blob = blobDirectory.GetBlockBlobReference(file.Name);
+                    var blobName = blobDirectory.TrimEnd('/') + "/" + file.Name;
+                    var blob = container.GetBlockBlobClient(blobName);
+                    var progress = new StorageProgressShim(progressIndicator, processedBytes);
 
                     if (result != UploadResult.AlreadyExists)
                     {
-                        // add metadata
-                        AddMetadata(blob, item.Metadata);
-
-                        // set metadata
-                        if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.GetExtension(), out var mimeType))
-                        {
-                            blob.Properties.ContentType = mimeType;
-                        }
-
                         // check for extistance
                         switch (await ExistsAndCompareAsync(blob, item))
                         {
                             // upload, if not exists
                             case null:
-                                result = await UploadCoreAsync(blob, item);
+                                result = await UploadCoreAsync(container, blob, item, progress);
                                 break;
 
                             // already exists, if matches
@@ -226,23 +214,18 @@ namespace PhotoArchiver
                                     case ConflictResolution.KeepBoth:
                                         {
                                             // compute hash for new file name
-                                            var hash = await item.ComputeHashAsync();
-                                            var formattedHash = BitConverter.ToString(hash).Replace("-", string.Empty);
+                                            var fileHash = await item.ComputeHashAsync();
+                                            var formattedHash = BitConverter.ToString(fileHash).Replace("-", string.Empty);
 
-                                            blob = blobDirectory.GetBlockBlobReference(Path.ChangeExtension(file.Name, "." + formattedHash + file.GetExtension()));
-
-                                            // set metadata
-                                            AddMetadata(blob, item.Metadata);
-                                            if (!KeyVaultOptions.IsEnabled() && MimeTypes.TryGetValue(file.GetExtension(), out mimeType))
-                                            {
-                                                blob.Properties.ContentType = mimeType;
-                                            }
+                                            // new blob
+                                            blobName = blobDirectory.TrimEnd('/') + "/" + Path.ChangeExtension(file.Name, "." + formattedHash + file.GetExtension());
+                                            blob = container.GetBlockBlobClient(blobName);
 
                                             // upload with new name
                                             switch (await ExistsAndCompareAsync(blob, item))
                                             {
                                                 case null:
-                                                    result = await UploadCoreAsync(blob, item);
+                                                    result = await UploadCoreAsync(container, blob, item, progress);
                                                     break;
 
                                                 case false:
@@ -257,23 +240,31 @@ namespace PhotoArchiver
                                         break;
 
                                     case ConflictResolution.SnapshotAndOverwrite:
-                                        if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
                                         {
-                                            result = UploadResult.Error;
-                                            break;
-                                        }
+                                            var properties = (await blob.GetPropertiesAsync()).Value;
+                                            if (properties.AccessTier == AccessTier.Archive)
+                                            {
+                                                Logger.LogInformation($"Can't snapshot, because blob is in Archive tier.");
+                                                result = UploadResult.Error;
+                                                break;
+                                            }
 
-                                        await blob.CreateSnapshotAsync(cancellationToken);
-                                        result = await UploadCoreAsync(blob, item);
+                                            await blob.CreateSnapshotAsync(cancellationToken: cancellationToken);
+                                            result = await UploadCoreAsync(container, blob, item, progress);
+                                        }
                                         break;
 
                                     case ConflictResolution.Overwrite:
-                                        if (blob.Properties.StandardBlobTier == StandardBlobTier.Archive)
                                         {
-                                            await blob.DeleteAsync(cancellationToken);
-                                        }
+                                            var properties = (await blob.GetPropertiesAsync()).Value;
+                                            if (properties.AccessTier == AccessTier.Archive)
+                                            {
+                                                Logger.LogTrace($"Deleting '{blob}'...");
+                                                await blob.DeleteAsync(cancellationToken: cancellationToken);
+                                            }
 
-                                        result = await UploadCoreAsync(blob, item);
+                                            result = await UploadCoreAsync(container, blob, item, progress);
+                                        }
                                         break;
 
                                     default:
@@ -287,22 +278,24 @@ namespace PhotoArchiver
                         if (result.IsSuccessful())
                         {
                             // verify
-                            if (Options.Verify && !KeyVaultOptions.IsEnabled())
+                            if (Options.Verify)
                             {
-                                var hash = await item.ComputeHashAsync();
-                                var b64 = Convert.ToBase64String(hash);
-                                if (blob.Properties.ContentMD5 != b64)
-                                {
-                                    throw new VerificationFailedException(item.Info, blob);
-                                }
-                            }
+                                // refresh properties
+                                var properties = (await blob.GetPropertiesAsync()).Value;
 
-                            // archive
-                            if (StorageOptions.Archive && blob.Properties.StandardBlobTier != StandardBlobTier.Archive)
-                            {
-                                Logger.LogTrace($"Archiving {blob}...");
-                                await blob.SetStandardBlobTierAsync(StandardBlobTier.Archive);
-                                CostEstimator.AddWrite();
+                                // compute file hash
+                                var fileHash = await item.ComputeHashAsync();
+                                var blobHash = properties.ContentHash;
+                                if (blobHash == null)
+                                {
+                                    throw new VerificationFailedException(item.Info, blob.Uri);
+                                }
+
+                                // compare
+                                if (!blobHash.AsSpan().SequenceEqual(fileHash))
+                                {
+                                    throw new VerificationFailedException(item.Info, blob.Uri);
+                                }
                             }
 
                             // deduplicate
@@ -321,27 +314,29 @@ namespace PhotoArchiver
                         {
                             using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
 
-                            var thumbnailContainer = Client.GetContainerReference(ThumbnailOptions.Container);
-                            var thumbnailBlob = thumbnailContainer.GetBlockBlobReference(blob.Name);
-                            thumbnailBlob.Properties.ContentType = "image/jpeg";
-                            AddMetadata(thumbnailBlob, item.Metadata);
+                            var thumbnailContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
+                            var thumbnailBlob = thumbnailContainer.GetBlockBlobClient(blob.Name);
+                            var headers = new BlobHttpHeaders
+                            {
+                                ContentType = "image/jpeg"
+                            };
 
                             try
                             {
-                                await thumbnailBlob.UploadFromStreamAsync(thumbnail);
+                                await thumbnailBlob.UploadAsync(thumbnail, headers, item.Metadata);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
-                            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
+                            catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
                             {
                                 await thumbnailContainer.CreateIfNotExistsAsync();
                                 CostEstimator.AddListOrCreateContainer();
-                                await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
-                            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 409)
+                            catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobAlreadyExists)
                             {
                                 await thumbnailBlob.DeleteIfExistsAsync();
-                                await thumbnailBlob.UploadFromStreamAsync(thumbnail.Rewind());
+                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
                         }
@@ -379,15 +374,7 @@ namespace PhotoArchiver
             return new ArchiveResult(results);
         }
 
-        private static void AddMetadata(CloudBlockBlob blob, IDictionary<string, string> metadata)
-        {
-            foreach (var kv in metadata)
-            {
-                blob.Metadata.Add(kv.Key, kv.Value);
-            }
-        }
-
-        private async Task<bool?> ExistsAndCompareAsync(CloudBlockBlob blob, FileUploadItem item)
+        private async Task<bool?> ExistsAndCompareAsync(BlockBlobClient blob, FileUploadItem item)
         {
             // check for exists
             Logger.LogTrace($"Checking for {blob} exists...");
@@ -395,21 +382,25 @@ namespace PhotoArchiver
             if (await blob.ExistsAsync())
             {
                 Logger.LogTrace($"Fetching attributes for {blob}...");
-                await blob.FetchAttributesAsync();
+                var properties = (await blob.GetPropertiesAsync()).Value;
                 CostEstimator.AddOther();
 
                 // compare file size
-                if (!blob.IsEncrypted())
+                if (properties.ContentLength != await item.Info.GetSizeAsync())
                 {
-                    if (blob.Properties.Length != await item.Info.GetSizeAsync())
-                    {
-                        return false;
-                    }
+                    return false;
                 }
 
                 // compare hash
-                var hash = await item.ComputeHashAsync();
-                if (!blob.GetPlainMd5().AsSpan().SequenceEqual(hash.AsSpan()))
+                var fileHash = await item.ComputeHashAsync();
+                var blobHash = properties.ContentHash;
+                if (blobHash == null)
+                {
+                    Logger.LogWarning($"Blob has no hash stored.");
+                    return false;
+                }
+
+                if (!blobHash.AsSpan().SequenceEqual(fileHash.AsSpan()))
                 {
                     return false;
                 }
@@ -420,31 +411,24 @@ namespace PhotoArchiver
             return null;
         }
 
-        private async Task<UploadResult> UploadCoreAsync(CloudBlockBlob blob, FileUploadItem item)
+        private async Task<UploadResult> UploadCoreAsync(BlobContainerClient container, BlockBlobClient blob, FileUploadItem item, IProgress<long> progress)
         {
             // upload
             Logger.LogTrace($"Uploading {item.Info} to {blob}...");
 
-            var requestOptions = new BlobRequestOptions
+            var headers = new BlobHttpHeaders
             {
-                StoreBlobContentMD5 = true,
-                DisableContentMD5Validation = false,
-                ParallelOperationThreadCount = Options.ParallelBlockCount,
-                LocationMode = LocationMode.PrimaryOnly,
+                ContentType = MimeTypes.TryGetValue(item.Info.GetExtension(), out var contentType) ? contentType : "application/octet-stream"
             };
-            if (KeyVaultOptions.IsEnabled())
-            {
-                requestOptions.EncryptionPolicy = new BlobEncryptionPolicy(_key, null);
-            }
 
             try
             {
-                await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+                await blob.UploadAsync(await item.OpenReadAsync(), headers, item.Metadata, progressHandler: progress);
             }
-            catch (StorageException ex) when (ex.RequestInformation.HttpStatusCode == 404)
+            catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
             {
-                await blob.Container.CreateIfNotExistsAsync();
-                await blob.UploadFromStreamAsync(await item.OpenReadAsync(), AccessCondition.GenerateEmptyCondition(), requestOptions, null);
+                await container.CreateIfNotExistsAsync();
+                await blob.UploadAsync(await item.OpenReadAsync(), headers, item.Metadata, progressHandler: progress);
             }
             CostEstimator.AddWrite(await item.Info.GetSizeAsync());
 
