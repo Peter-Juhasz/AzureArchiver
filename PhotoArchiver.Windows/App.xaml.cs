@@ -1,9 +1,6 @@
-﻿using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
+﻿using Azure.Storage.Blobs;
+using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.Face;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Core;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,7 +11,6 @@ using PhotoArchiver.Costs;
 using PhotoArchiver.Deduplication;
 using PhotoArchiver.Download;
 using PhotoArchiver.Face;
-using PhotoArchiver.KeyVault;
 using PhotoArchiver.Progress;
 using PhotoArchiver.Storage;
 using PhotoArchiver.Thumbnails;
@@ -22,22 +18,11 @@ using PhotoArchiver.Update;
 using PhotoArchiver.Upload;
 using PhotoArchiver.Windows.Services;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
-using Windows.ApplicationModel.Core;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 
 namespace PhotoArchiver.Windows
@@ -78,14 +63,7 @@ namespace PhotoArchiver.Windows
 
                 // storage
                 .Configure<StorageOptions>(configuration.GetSection("Storage"))
-                .AddSingleton(sp => CloudStorageAccount.Parse(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
-                .AddSingleton(sp => sp.GetService<CloudStorageAccount>().CreateCloudBlobClient())
-
-                // key vault
-                .Configure<KeyVaultOptions>(configuration.GetSection("KeyVault"))
-                .AddSingleton<TokenCache>()
-                .AddSingleton<IActiveDirectoryAccessTokenProvider, ActiveDirectoryAccessTokenProvider>()
-                .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
+                .AddSingleton(sp => new BlobServiceClient(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
 
                 // vision
                 .Configure<ComputerVisionOptions>(configuration.GetSection("ComputerVision"))

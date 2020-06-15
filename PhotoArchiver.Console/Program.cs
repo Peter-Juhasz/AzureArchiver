@@ -6,17 +6,13 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
+using Azure.Storage.Blobs;
 using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Core;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
@@ -28,7 +24,6 @@ namespace PhotoArchiver.Console
     using Download;
     using Face;
     using Files;
-    using KeyVault;
     using Logging;
     using Progress;
     using Storage;
@@ -55,20 +50,13 @@ namespace PhotoArchiver.Console
                         options.IncludeScopes = false;
                     })
                     .AddProvider(new FileLoggerProvider())
-                    .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information)
+                    .SetMinimumLevel(LogLevel.Information)
                     .AddConfiguration(configuration.GetSection("Logging"))
                 )
 
                 // storage
                 .Configure<StorageOptions>(configuration.GetSection("Storage"))
-                .AddSingleton(sp => CloudStorageAccount.Parse(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
-                .AddSingleton(sp => sp.GetService<CloudStorageAccount>().CreateCloudBlobClient())
-
-                // key vault
-                .Configure<KeyVaultOptions>(configuration.GetSection("KeyVault"))
-                .AddSingleton<TokenCache>()
-                .AddSingleton<IActiveDirectoryAccessTokenProvider, ActiveDirectoryAccessTokenProvider>()
-                .AddSingleton<IKeyResolver>(sp => new KeyVaultKeyResolver((a, r, s) => sp.GetRequiredService<IActiveDirectoryAccessTokenProvider>().GetAccessTokenAsync(r)))
+                .AddSingleton(sp => new BlobServiceClient(sp.GetService<IOptions<StorageOptions>>().Value.ConnectionString))
 
                 // vision
                 .Configure<ComputerVisionOptions>(configuration.GetSection("ComputerVision"))
@@ -144,7 +132,7 @@ namespace PhotoArchiver.Console
             var costOptions = provider.GetRequiredService<IOptions<CostOptions>>().Value;
             var uploadOptions = provider.GetRequiredService<IOptions<UploadOptions>>().Value;
             var downloadOptions = provider.GetRequiredService<IOptions<DownloadOptions>>().Value;
-            var client = provider.GetRequiredService<CloudBlobClient>();
+            var client = provider.GetRequiredService<BlobServiceClient>();
             var costEstimator = provider.GetRequiredService<CostEstimator>();
             var logger = provider.GetRequiredService<ILogger<Program>>();
 
@@ -159,11 +147,7 @@ namespace PhotoArchiver.Console
 
             // create container if not exists
             logger.LogTrace("Ensure container exists...");
-            if (await client.GetContainerReference(storageOptions.Container).CreateIfNotExistsAsync())
-            {
-                logger.LogInformation("Container created.");
-                costEstimator.AddListOrCreateContainer();
-            }
+            await client.GetBlobContainerClient(storageOptions.Container).CreateIfNotExistsAsync();
 
             var watch = Stopwatch.StartNew();
             var progressIndicator = provider.GetRequiredService<IProgressIndicator>();
@@ -193,7 +177,7 @@ namespace PhotoArchiver.Console
             {
                 if (downloadOptions.Continue)
                 {
-                    var result = await archiver.ContinueAsync(default);
+                    var result = await archiver.ContinueAsync(downloadOptions, default);
                     watch.Stop();
 
                     // summarize results
@@ -207,7 +191,7 @@ namespace PhotoArchiver.Console
                     logger.LogInformation($"Time elapsed: {watch.Elapsed}");
                     if (failed.Any())
                     {
-                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Name, f.Error?.Message))));
                     }
                 }
                 else
@@ -226,7 +210,7 @@ namespace PhotoArchiver.Console
                     logger.LogInformation($"Time elapsed: {watch.Elapsed}");
                     if (failed.Any())
                     {
-                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Uri, f.Error?.Message))));
+                        logger.LogError(String.Join(Environment.NewLine, failed.Select(f => String.Join('\t', f.Result.ToString().PadRight(24, ' '), f.Blob.Name, f.Error?.Message))));
                     }
                 }
             }

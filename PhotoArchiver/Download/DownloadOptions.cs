@@ -1,7 +1,6 @@
-﻿using System;
+﻿using Azure.Storage.Blobs.Models;
+using System;
 using System.Collections.Generic;
-using System.IO;
-using Microsoft.Azure.Storage.Blob;
 
 namespace PhotoArchiver.Download
 {
@@ -19,13 +18,15 @@ namespace PhotoArchiver.Download
 
         public IReadOnlyCollection<string>? People { get; set; }
 
-        public StandardBlobTier RehydrationTier { get; set; } = StandardBlobTier.Hot;
+        public AccessTier RehydrationTier { get; set; } = AccessTier.Hot;
 
         public bool Verify { get; set; } = false;
+
+        public bool Archive { get; set; } = false;
 
 
         public bool Continue { get; set; } = false;
 
-        public bool IsEnabled() => ((StartDate != null && EndDate != null) || Date != null) || Continue;
+        public bool IsEnabled() => (StartDate != null && EndDate != null) || Date != null || Continue;
     }
 }

@@ -1,9 +1,8 @@
-﻿using Microsoft.Azure.Storage.Core.Util;
-using System;
+﻿using System;
 
 namespace PhotoArchiver.Progress
 {
-    public class StorageProgressShim : IProgress<StorageProgress>
+    public class StorageProgressShim : IProgress<long>
     {
         public StorageProgressShim(IProgressIndicator progressIndicator, long snaphotBytes)
         {
@@ -14,9 +13,9 @@ namespace PhotoArchiver.Progress
         public IProgressIndicator ProgressIndicator { get; }
         public long SnaphotBytes { get; }
 
-        public void Report(StorageProgress value)
+        public void Report(long value)
         {
-            ProgressIndicator.SetBytesProgress(SnaphotBytes + value.BytesTransferred);
+            ProgressIndicator.SetBytesProgress(SnaphotBytes + value);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Azure.Storage.Blobs.Models;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Upload
@@ -22,6 +23,8 @@ namespace PhotoArchiver.Upload
         public bool Deduplicate { get; set; } = false;
 
         public int? ParallelBlockCount { get; set; }
+
+        public AccessTier AccessTier { get; set; } = AccessTier.Cool;
 
 
         public bool IsEnabled() => Path != null;

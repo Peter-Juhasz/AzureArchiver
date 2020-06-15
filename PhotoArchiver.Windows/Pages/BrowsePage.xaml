@@ -104,10 +104,6 @@
                     <tc:HeaderedTextBlock Header="Tags" Text="{x:Bind ViewModel.SelectedItem.Tags}" Visibility="{x:Bind ViewModel.SelectedItem.Tags, Converter={StaticResource StringNullToVisibilityConverter}}" />
                     <tc:HeaderedTextBlock Header="Original File Name" Text="{x:Bind ViewModel.SelectedItem.OriginalFileName}" />
                     <tc:HeaderedTextBlock Header="MD5 Hash" Text="{x:Bind ViewModel.SelectedItem.Md5}" Visibility="{x:Bind ViewModel.SelectedItem.Md5, Converter={StaticResource StringNullToVisibilityConverter}}" />
-                    <StackPanel Orientation="Horizontal" Visibility="{x:Bind ViewModel.SelectedItem.IsEncrypted, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <SymbolIcon Symbol="ProtectedDocument" ToolTipService.ToolTip="Encrypted" />
-                        <TextBlock Text="Encrypted" Margin="4,0,0,0" />
-                    </StackPanel>
                 </StackPanel>
             </SplitView.Pane>
             <SplitView.Content>
@@ -140,13 +136,6 @@
                                     </Style>
                                 </tc:DataGridTextColumn.CellStyle>
                             </tc:DataGridTextColumn>
-                            <tc:DataGridTemplateColumn Width="48">
-                                <tc:DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate x:DataType="vm:ItemViewModel">
-                                        <SymbolIcon Symbol="ProtectedDocument" ToolTipService.ToolTip="Encrypted" Visibility="{x:Bind IsEncrypted}" />
-                                    </DataTemplate>
-                                </tc:DataGridTemplateColumn.CellTemplate>
-                            </tc:DataGridTemplateColumn>
                         </tc:DataGrid.Columns>
                         <tc:DataGrid.ContextFlyout>
                             <MenuFlyout>

@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Storage.Core.Util;
-using PhotoArchiver.Progress;
+﻿using PhotoArchiver.Progress;
 using System;
 using System.ComponentModel;
 using System.Threading;
@@ -9,7 +8,7 @@ using Windows.UI.Core;
 
 namespace PhotoArchiver.Windows.ViewModels
 {
-    public class UploadTaskViewModel : INotifyPropertyChanged, IProgressIndicator, IProgress<StorageProgress>
+    public class UploadTaskViewModel : INotifyPropertyChanged, IProgressIndicator, IProgress<long>
     {
         public UploadTaskViewModel()
         {
@@ -170,11 +169,11 @@ namespace PhotoArchiver.Windows.ViewModels
             });
         }
 
-        void IProgress<StorageProgress>.Report(StorageProgress value)
+        void IProgress<long>.Report(long value)
         {
             CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
             {
-                Value = value.BytesTransferred;
+                Value = value;
 
                 if (Value == Maximum)
                 {

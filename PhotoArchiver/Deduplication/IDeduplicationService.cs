@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
 
 namespace PhotoArchiver.Deduplication
 {
     public interface IDeduplicationService
     {
-        void Add(CloudBlobDirectory directory, ReadOnlySpan<byte> hash);
-        Task<bool> ContainsAsync(CloudBlobDirectory directory, byte[] hash);
+        void Add(string directory, ReadOnlySpan<byte> hash);
+
+        Task<bool> ContainsAsync(BlobContainerClient container, string directory, byte[] hash);
     }
 }
