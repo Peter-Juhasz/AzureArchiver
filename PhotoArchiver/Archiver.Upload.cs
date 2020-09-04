@@ -459,6 +459,7 @@ namespace PhotoArchiver
                 case ".CR2":
                 case ".NEF":
                 case ".DNG":
+                case ".GPR":
                     {
                         var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
@@ -468,7 +469,7 @@ namespace PhotoArchiver
                         }
 
                         // fallback to JPEG
-                        var jpeg = peers.FirstOrDefault(p => p.Path == Path.ChangeExtension(item.Info.Path, ".jpg"));
+                        var jpeg = peers.FirstOrDefault(p => p.Path.Equals(Path.ChangeExtension(item.Info.Path, ".jpg"), StringComparison.CurrentCultureIgnoreCase));
                         if (jpeg != null)
                         {
                             using var item2 = new FileUploadItem(jpeg);
@@ -477,7 +478,7 @@ namespace PhotoArchiver
 
                         if (item.Info.GetExtension().Equals(".dng", StringComparison.OrdinalIgnoreCase))
                         {
-                            jpeg = peers.FirstOrDefault(p => p.Path == Path.ChangeExtension(item.Info.Path, ".jpg").Replace("__highres", ""));
+                            jpeg = peers.FirstOrDefault(p => p.Path.Equals(Path.ChangeExtension(item.Info.Path, ".jpg").Replace("__highres", ""), StringComparison.CurrentCultureIgnoreCase));
                             if (jpeg != null)
                             {
                                 using var item2 = new FileUploadItem(jpeg);
@@ -518,6 +519,19 @@ namespace PhotoArchiver
                             return date;
                     }
                     break;
+
+                case ".WAV":
+                    {
+                        // fallback to MP4
+                        var mp4 = peers.FirstOrDefault(p => p.Path.Equals(Path.ChangeExtension(item.Info.Path, ".mp4"), StringComparison.CurrentCultureIgnoreCase));
+                        if (mp4 != null)
+                        {
+                            using var item2 = new FileUploadItem(mp4);
+                            return await GetDateAsync(item2, peers);
+                        }
+                    }
+                    break;
+
             }
 
             if (TryParseDate(item.Info.Name, out var dt))
