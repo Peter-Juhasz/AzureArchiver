@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Upload
 {
+    [SuppressMessage("Performance", "CA1805:Do not initialize unnecessarily", Justification = "<Pending>")]
     public class UploadOptions
     {
         public string? Path { get; set; }

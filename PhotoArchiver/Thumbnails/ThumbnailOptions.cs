@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Thumbnails
 {
+    [SuppressMessage("Performance", "CA1805:Do not initialize unnecessarily", Justification = "<Pending>")]
     public class ThumbnailOptions
     {
         public int? MaxWidth { get; set; }

@@ -37,9 +37,9 @@ namespace PhotoArchiver.Files
             return Task.FromResult(new SystemIOFile(new FileInfo(System.IO.Path.Combine(Directory.FullName, name))) as IFile);
         }
 
-        public async Task<IReadOnlyList<IFile>> GetFilesAsync()
+        public Task<IReadOnlyList<IFile>> GetFilesAsync()
         {
-            return Directory.GetFiles("*", SearchOption.AllDirectories).Select(f => new SystemIOFile(f)).ToList();
+            return Task.FromResult(Directory.GetFiles("*", SearchOption.AllDirectories).Select(f => new SystemIOFile(f)).ToList() as IReadOnlyList<IFile>);
         }
     }
 }
