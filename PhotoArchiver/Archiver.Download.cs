@@ -65,7 +65,7 @@ namespace PhotoArchiver
                     if (blob.Properties.AccessTier == AccessTier.Archive)
                     {
                         Logger.LogInformation($"Rehydrate '{blob}'...");
-                        await blobClient.SetAccessTierAsync(options.RehydrationTier);
+                        await blobClient.SetAccessTierAsync(options.RehydrationTier, cancellationToken: cancellationToken);
                         CostEstimator.AddRead();
                         CostEstimator.AddWrite();
 
@@ -134,7 +134,7 @@ namespace PhotoArchiver
             {
                 // read state
                 using var stream = sessionFile.OpenRead();
-                var session = await JsonSerializer.DeserializeAsync<RetrievalSession>(stream);
+                var session = await JsonSerializer.DeserializeAsync<RetrievalSession>(stream, cancellationToken: cancellationToken);
 
                 var processed = 0;
                 var downloaded = new List<PendingItem>();
@@ -160,7 +160,7 @@ namespace PhotoArchiver
                         // archive
                         if (options.Archive)
                         {
-                            await client.SetAccessTierAsync(AccessTier.Archive);
+                            await client.SetAccessTierAsync(AccessTier.Archive, cancellationToken: cancellationToken);
                             CostEstimator.AddRead();
                             CostEstimator.AddWrite();
                         }
@@ -187,7 +187,7 @@ namespace PhotoArchiver
                 {
                     session.PendingItems = session.PendingItems.Except(downloaded).ToArray();
                     using var writeStream = sessionFile.OpenWrite();
-                    await JsonSerializer.SerializeAsync(writeStream, session);
+                    await JsonSerializer.SerializeAsync(writeStream, session, cancellationToken: cancellationToken);
                 }
             }
 
@@ -214,7 +214,7 @@ namespace PhotoArchiver
                 if (verify)
                 {
                     // acquire file hash
-                    var blobHash = blob.Properties.ContentHash ?? (await client.GetPropertiesAsync()).Value.ContentHash;
+                    var blobHash = blob.Properties.ContentHash ?? (await client.GetPropertiesAsync(cancellationToken: cancellationToken)).Value.ContentHash;
                     if (blobHash == null)
                     {
                         throw new VerificationFailedException(file, client.Uri);

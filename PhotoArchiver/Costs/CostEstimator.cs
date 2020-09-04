@@ -19,7 +19,7 @@ namespace PhotoArchiver.Costs
         private const long GB = 1024 * 1024 * 1024;
 
 
-        public int Reads { get; private set; } = 0;
+        public int Reads { get; private set; }
 
         public void AddRead() => Reads++;
 
@@ -30,7 +30,7 @@ namespace PhotoArchiver.Costs
         }
 
 
-        public int Writes { get; private set; } = 0;
+        public int Writes { get; private set; }
 
         public void AddWrite() => Writes++;
 
@@ -40,38 +40,37 @@ namespace PhotoArchiver.Costs
             AddBytesWritten(bytes);
         }
 
-
-        public int Others { get; private set; } = 0;
+        public int Others { get; private set; }
 
         public void AddOther() => Others++;
 
 
-        public int ListOrCreateContainers { get; private set; } = 0;
+        public int ListOrCreateContainers { get; private set; }
 
         public void AddListOrCreateContainer() => ListOrCreateContainers++;
 
 
-        public long BytesWritten { get; private set; } = 0;
+        public long BytesWritten { get; private set; }
 
         public void AddBytesWritten(long bytes) => BytesWritten += bytes;
 
 
-        public int KeyVaultOperations { get; private set; } = 0;
+        public int KeyVaultOperations { get; private set; }
 
         public void AddKeyVaultOperation() => KeyVaultOperations++;
 
 
-        public int DescribeTransactions { get; private set; } = 0;
+        public int DescribeTransactions { get; private set; }
 
         public void AddDescribe() => DescribeTransactions++;
 
 
-        public int FaceTransactions { get; private set; } = 0;
+        public int FaceTransactions { get; private set; }
 
         public void AddFace() => FaceTransactions++;
 
 
-        public long BytesRead { get; private set; } = 0;
+        public long BytesRead { get; private set; }
 
         public void AddBytesRead(long bytes) => BytesRead += bytes;
 

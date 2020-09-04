@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 namespace PhotoArchiver.Download
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1805:Do not initialize unnecessarily", Justification = "<Pending>")]
     public class DownloadOptions
     {
         public string? Path { get; set; }

@@ -20,9 +20,9 @@ namespace PhotoArchiver.Upload
 
         public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
-        private Stream? Buffer { get; set; } = null;
+        private Stream? Buffer { get; set; }
 
-        private byte[]? Hash { get; set; } = null;
+        private byte[]? Hash { get; set; }
 
         public async Task<Stream> OpenReadAsync()
         {

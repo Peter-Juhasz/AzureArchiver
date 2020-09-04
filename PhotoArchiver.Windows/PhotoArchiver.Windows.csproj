@@ -200,10 +200,10 @@
       <Version>6.2.10</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls">
-      <Version>6.1.0</Version>
+      <Version>6.1.1</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls.DataGrid">
-      <Version>6.1.0</Version>
+      <Version>6.1.1</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

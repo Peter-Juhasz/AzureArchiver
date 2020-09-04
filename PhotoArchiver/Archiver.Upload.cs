@@ -143,7 +143,7 @@ namespace PhotoArchiver
 
                                 // describe
                                 Logger.LogTrace($"Describing {file}...");
-                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail);
+                                var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail, cancellationToken: cancellationToken);
                                 CostEstimator.AddDescribe();
                                 if (description.Captions.Any())
                                 {
@@ -170,10 +170,10 @@ namespace PhotoArchiver
 
                                 // detect
                                 Logger.LogTrace($"Detecing faces in {file}...");
-                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail, returnFaceId: true);
+                                var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail, returnFaceId: true, cancellationToken: cancellationToken);
                                 CostEstimator.AddFace();
                                 var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
-                                var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.PersonGroupId, confidenceThreshold: FaceOptions.ConfidenceThreshold);
+                                var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.PersonGroupId, confidenceThreshold: FaceOptions.ConfidenceThreshold, cancellationToken: cancellationToken);
                                 CostEstimator.AddFace();
 
                                 if (identifyResult.Any())
@@ -241,7 +241,7 @@ namespace PhotoArchiver
 
                                     case ConflictResolution.SnapshotAndOverwrite:
                                         {
-                                            var properties = (await blob.GetPropertiesAsync()).Value;
+                                            var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
                                             if (properties.AccessTier == AccessTier.Archive)
                                             {
                                                 Logger.LogInformation($"Can't snapshot, because blob is in Archive tier.");
@@ -256,7 +256,7 @@ namespace PhotoArchiver
 
                                     case ConflictResolution.Overwrite:
                                         {
-                                            var properties = (await blob.GetPropertiesAsync()).Value;
+                                            var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
                                             if (properties.AccessTier == AccessTier.Archive)
                                             {
                                                 Logger.LogTrace($"Deleting '{blob}'...");
@@ -281,7 +281,7 @@ namespace PhotoArchiver
                             if (Options.Verify)
                             {
                                 // refresh properties
-                                var properties = (await blob.GetPropertiesAsync()).Value;
+                                var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
 
                                 // compute file hash
                                 var fileHash = await item.ComputeHashAsync();
@@ -323,20 +323,20 @@ namespace PhotoArchiver
 
                             try
                             {
-                                await thumbnailBlob.UploadAsync(thumbnail, headers, item.Metadata);
+                                await thumbnailBlob.UploadAsync(thumbnail, headers, item.Metadata, cancellationToken: cancellationToken);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
                             catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
                             {
-                                await thumbnailContainer.CreateIfNotExistsAsync();
+                                await thumbnailContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
                                 CostEstimator.AddListOrCreateContainer();
-                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata);
+                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
                             catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobAlreadyExists)
                             {
-                                await thumbnailBlob.DeleteIfExistsAsync();
-                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata);
+                                await thumbnailBlob.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
                         }
@@ -451,7 +451,7 @@ namespace PhotoArchiver
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
                         if (tag != null)
                         {
-                            return ParseExifDateTime(tag.Description);
+                            return ParseExifDateTime(tag.Description!);
                         }
                     }
                     break;
@@ -465,7 +465,7 @@ namespace PhotoArchiver
                         var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
                         if (tag != null)
                         {
-                            return ParseExifDateTime(tag.Description);
+                            return ParseExifDateTime(tag.Description!);
                         }
 
                         // fallback to JPEG
@@ -585,7 +585,6 @@ namespace PhotoArchiver
             return false;
         }
 
-        [SuppressMessage("Globalization", "CA1307:Specify StringComparison", Justification = "<Pending>")]
         [SuppressMessage("Globalization", "CA1305:Specify IFormatProvider", Justification = "<Pending>")]
         internal static DateTime ParseExifDateTime(string exifValue) =>
             DateTime.Parse(
