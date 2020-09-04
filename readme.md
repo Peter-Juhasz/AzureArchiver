@@ -161,6 +161,7 @@ Supported file types:
 	- Canon Raw Version 2 (.CR2)
 	- Digital Negative (.DNG), iOS/Windows Phone RAW
 	- Nikon Electric Format (.NEF)
+    - GoPro (.GPR, .WAV)
 
 Supported sources to upload from:
  - Local File System
