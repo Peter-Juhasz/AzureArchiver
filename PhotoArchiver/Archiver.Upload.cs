@@ -339,6 +339,12 @@ namespace PhotoArchiver
                                 await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
                                 CostEstimator.AddWrite(thumbnail.Length);
                             }
+                            catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobArchived && ThumbnailOptions.Force)
+                            {
+                                await thumbnailBlob.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+                                await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
+                                CostEstimator.AddWrite(thumbnail.Length);
+                            }
                         }
 
                         // delete
@@ -435,7 +441,7 @@ namespace PhotoArchiver
             return UploadResult.Uploaded;
         }
 
-        private async Task<DateTime?> GetDateAsync(FileUploadItem item, IEnumerable<IFile> peers)
+        private async ValueTask<DateTime?> GetDateAsync(FileUploadItem item, IEnumerable<IFile> peers)
         {
             Logger.LogTrace($"Reading date for {item.Info}...");
 
