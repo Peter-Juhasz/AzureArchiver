@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Logging;
 
 namespace PhotoArchiver.Deduplication
 {
@@ -12,16 +13,17 @@ namespace PhotoArchiver.Deduplication
 
     public class DeduplicationService : IDeduplicationService
     {
-        public DeduplicationService(CostEstimator costEstimator)
+        public DeduplicationService(CostEstimator costEstimator, ILogger<DeduplicationService> logger)
         {
             CostEstimator = costEstimator;
+            Logger = logger;
         }
 
         protected CostEstimator CostEstimator { get; }
-
+        public ILogger<DeduplicationService> Logger { get; }
         protected IDictionary<string, HashSet<byte[]>> Store { get; } = new Dictionary<string, HashSet<byte[]>>();
 
-        public async Task<bool> ContainsAsync(BlobContainerClient container, string directory, byte[] hash)
+        public async ValueTask<bool> ContainsAsync(BlobContainerClient container, string directory, byte[] hash)
         {
             var key = directory;
             if (!Store.TryGetValue(key, out var set))
@@ -33,26 +35,30 @@ namespace PhotoArchiver.Deduplication
             return set.Contains(hash);
         }
 
-        public void Add(string directory, ReadOnlySpan<byte> hash)
+        public void Add(string directory, byte[] hash)
         {
             var key = directory;
-            Store[key].Add(hash.ToArray());
+            Store[key].Add(hash);
         }
 
-        private static async Task<HashSet<byte[]>> GetHashes(BlobContainerClient container, string directory)
+        private async Task<HashSet<byte[]>> GetHashes(BlobContainerClient container, string directory)
         {
+            Logger.LogInformation($"Gathering hashes from '{container.Name}/{directory}/'...");
+
             return await container.GetBlobsAsync(
                 traits: BlobTraits.None,
                 prefix: directory
             )
                 .Select(b => b.Properties.ContentHash)
                 .Where(b => b != null)
-                .ToHashSetAsync(new ByteArrayComparer());
+                .ToHashSetAsync(ByteArrayComparer.Instance);
         }
 
 
-        class ByteArrayComparer : IEqualityComparer<byte[]>
+        private sealed class ByteArrayComparer : IEqualityComparer<byte[]>
         {
+            public static readonly ByteArrayComparer Instance = new ByteArrayComparer();
+
             public bool Equals(byte[] a, byte[] b)
             {
                 if (a.Length != b.Length) return false;
