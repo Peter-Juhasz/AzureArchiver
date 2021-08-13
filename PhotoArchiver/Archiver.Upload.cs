@@ -552,7 +552,8 @@ namespace PhotoArchiver
         {
             // IMG_20190525_120904
             // VID_20181226_163237
-            if (fileName.Length >= 19 + 4 && (fileName.StartsWith("IMG_2") || fileName.StartsWith("VID_2")) && fileName[12] == '_')
+            // PXL_20181226_163237
+            if (fileName.Length >= 19 + 4 && (fileName.StartsWith("IMG_2") || fileName.StartsWith("VID_2") || fileName.StartsWith("PXL_2")) && fileName[12] == '_')
             {
                 result = new DateTime(Int32.Parse(fileName.Substring(4, 4)), Int32.Parse(fileName.Substring(8, 2)), Int32.Parse(fileName.Substring(10, 2)));
                 return true;
