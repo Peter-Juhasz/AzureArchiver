@@ -1,10 +1,9 @@
-﻿namespace PhotoArchiver.Upload
+﻿namespace PhotoArchiver.Upload;
+
+public enum ConflictResolution
 {
-    public enum ConflictResolution
-    {
-        Skip,
-        KeepBoth,
-        SnapshotAndOverwrite,
-        Overwrite,
-    }
+	Skip,
+	KeepBoth,
+	SnapshotAndOverwrite,
+	Overwrite,
 }

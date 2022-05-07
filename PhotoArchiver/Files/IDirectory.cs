@@ -1,17 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿namespace PhotoArchiver.Files;
 
-namespace PhotoArchiver.Files
+public interface IDirectory
 {
-    public interface IDirectory
-    {
-        string Name { get; }
+	string Name { get; }
 
-        string Path { get; }
+	string Path { get; }
 
-        Task<IReadOnlyList<IFile>> GetFilesAsync();
+	Task<IReadOnlyList<IFile>> GetFilesAsync();
 
-        Task<IFile> GetFileAsync(string name);
-        Task<IFile> CreateFileAsync(string name);
-    }
+	Task<IFile> GetFileAsync(string name);
+
+	Task<IFile> CreateFileAsync(string name);
 }

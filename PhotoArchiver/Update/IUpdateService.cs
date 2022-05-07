@@ -1,9 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿namespace PhotoArchiver.Update;
 
-namespace PhotoArchiver.Update
+public interface IUpdateService
 {
-    public interface IUpdateService
-    {
-        Task<bool> CheckForUpdatesAsync();
-    }
+	Task<bool> CheckForUpdatesAsync();
 }

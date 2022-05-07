@@ -1,9 +1,8 @@
 ﻿using Azure.Storage.Blobs.Models;
 
-namespace PhotoArchiver.Extensions
+namespace PhotoArchiver.Extensions;
+
+public static class CloudBlobExtensions
 {
-    public static class CloudBlobExtensions
-    {
-        public static bool IsObsoleteEncrypted(this BlobItem blob) => blob.Metadata.ContainsKey("encryptiondata");
-    }
+	public static bool IsObsoleteEncrypted(this BlobItem blob) => blob.Metadata.ContainsKey("encryptiondata");
 }

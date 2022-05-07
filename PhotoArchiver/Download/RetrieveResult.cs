@@ -1,14 +1,3 @@
-﻿using System.Collections.Generic;
+﻿namespace PhotoArchiver.Download;
 
-namespace PhotoArchiver.Download
-{
-    public class RetrieveResult
-    {
-        public RetrieveResult(IReadOnlyCollection<BlobDownloadResult> results)
-        {
-            Results = results;
-        }
-
-        public IReadOnlyCollection<BlobDownloadResult> Results { get; }
-    }
-}
+public record class RetrieveResult(IReadOnlyCollection<BlobDownloadResult> Results);

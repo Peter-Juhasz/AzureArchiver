@@ -1,17 +1,16 @@
-﻿namespace PhotoArchiver.Progress
+﻿namespace PhotoArchiver.Progress;
+
+public interface IProgressIndicator
 {
-    public interface IProgressIndicator
-    {
-        void Initialize(long allBytes, long allItems);
+	void Initialize(long allBytes, long allItems);
 
-        void ToIndeterminateState();
+	void ToIndeterminateState();
 
-        void SetBytesProgress(long bytesProcessed);
+	void SetBytesProgress(long bytesProcessed);
 
-        void SetItemProgress(long itemsProcessed);
+	void SetItemProgress(long itemsProcessed);
 
-        void ToFinishedState();
+	void ToFinishedState();
 
-        void ToErrorState();
-    }
+	void ToErrorState();
 }

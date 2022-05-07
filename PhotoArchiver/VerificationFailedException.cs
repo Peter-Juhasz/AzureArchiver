@@ -1,20 +1,17 @@
-﻿using System;
+﻿namespace PhotoArchiver;
 
-namespace PhotoArchiver
+using Files;
+
+public class VerificationFailedException : Exception
 {
-    using Files;
+	public VerificationFailedException(IFile info, Uri blob)
+		: base($"Verification failed for file '{info}'")
+	{
+		Info = info;
+		Blob = blob;
+	}
 
-    public class VerificationFailedException : Exception
-    {
-        public VerificationFailedException(IFile info, Uri blob)
-            : base($"Verification failed for file '{info}'")
-        {
-            Info = info;
-            Blob = blob;
-        }
+	public IFile Info { get; }
 
-        public IFile Info { get; }
-
-        public Uri Blob { get; }
-    }
+	public Uri Blob { get; }
 }

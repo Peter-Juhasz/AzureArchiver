@@ -1,7 +1,6 @@
-﻿namespace PhotoArchiver
+﻿namespace PhotoArchiver;
+
+public static class BlobMetadataKeys
 {
-    public static class BlobMetadataKeys
-    {
-        public static readonly string OriginalMd5 = "OriginalMD5";
-    }
+	public static readonly string OriginalMd5 = "OriginalMD5";
 }

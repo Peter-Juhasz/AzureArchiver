@@ -1,10 +1,9 @@
-﻿namespace PhotoArchiver.Download
+﻿namespace PhotoArchiver.Download;
+
+public enum DownloadResult
 {
-    public enum DownloadResult
-    {
-        Succeeded,
-        Pending,
-        Conflict,
-        Failed,
-    }
+	Succeeded,
+	Pending,
+	Conflict,
+	Failed,
 }

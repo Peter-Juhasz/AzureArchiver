@@ -1,13 +1,10 @@
-﻿using System.IO;
+﻿namespace PhotoArchiver.Extensions;
 
-namespace PhotoArchiver.Extensions
+internal static class StreamExtensions
 {
-    internal static class StreamExtensions
-    {
-        public static Stream Rewind(this Stream stream)
-        {
-            stream.Seek(0L, SeekOrigin.Begin);
-            return stream;
-        }
-    }
+	public static Stream Rewind(this Stream stream)
+	{
+		stream.Seek(0L, SeekOrigin.Begin);
+		return stream;
+	}
 }

@@ -1,29 +1,28 @@
-﻿namespace PhotoArchiver.Progress
+﻿namespace PhotoArchiver.Progress;
+
+public class NullProgressIndicator : IProgressIndicator
 {
-    public class NullProgressIndicator : IProgressIndicator
-    {
-        public void ToErrorState()
-        {
-        }
+	public void ToErrorState()
+	{
+	}
 
-        public void ToFinishedState()
-        {
-        }
+	public void ToFinishedState()
+	{
+	}
 
-        public void ToIndeterminateState()
-        {
-        }
+	public void ToIndeterminateState()
+	{
+	}
 
-        public void Initialize(long all, long allItems)
-        {
-        }
+	public void Initialize(long all, long allItems)
+	{
+	}
 
-        public void SetBytesProgress(long processed)
-        {
-        }
+	public void SetBytesProgress(long processed)
+	{
+	}
 
-        public void SetItemProgress(long itemsProcessed)
-        {
-        }
-    }
+	public void SetItemProgress(long itemsProcessed)
+	{
+	}
 }

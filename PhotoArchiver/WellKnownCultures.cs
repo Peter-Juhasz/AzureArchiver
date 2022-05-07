@@ -1,9 +1,8 @@
 ﻿using System.Globalization;
 
-namespace PhotoArchiver
+namespace PhotoArchiver;
+
+public static class WellKnownCultures
 {
-    public static class WellKnownCultures
-    {
-        public static readonly CultureInfo EnglishUnitedStates = CultureInfo.GetCultureInfo("en-us");
-    }
+	public static readonly CultureInfo EnglishUnitedStates = CultureInfo.GetCultureInfo("en-us");
 }
