@@ -207,6 +207,7 @@ Also, set `Update:Enabled` to `false`, if you want to turn off update checks.
  - [Create a Storage Account](https://docs.microsoft.com/en-us/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal)
  - [Manage blobs on Azure Portal](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-portal)
  - [Manage blobs using Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
+ - [Use lifecycle management policies to archive blobs](https://docs.microsoft.com/en-us/azure/storage/blobs/archive-blob?tabs=azure-portal#use-lifecycle-management-policies-to-archive-blobs)
 
 ## Special thanks
  - [ImageSharp](https://github.com/SixLabors/ImageSharp) library for resizing images
