@@ -208,7 +208,7 @@ public partial class Archiver
 									{
 										// compute hash for new file name
 										var fileHash = await item.ComputeHashAsync();
-										var formattedHash = BitConverter.ToString(fileHash).Replace("-", string.Empty);
+										var formattedHash = Convert.ToHexString(fileHash);
 
 										// new blob
 										blobName = blobDirectory.TrimEnd('/') + "/" + Path.ChangeExtension(file.Name, "." + formattedHash + file.GetExtension());
@@ -355,7 +355,7 @@ public partial class Archiver
 			catch (Exception ex)
 			{
 				result = UploadResult.Error;
-				Logger.LogError(ex, $"Failed to process {file}");
+				Logger.LogError(ex, $"Failed to process {file.Name}");
 				results.Add(new FileUploadResult(file, result, ex));
 				progressIndicator.ToErrorState();
 			}

@@ -31,7 +31,7 @@ internal class FileLoggerProvider : ILoggerProvider
 	public void Dispose() { }
 
 
-	private class FileLogger : ILogger
+	private sealed class FileLogger : ILogger
 	{
 		public FileLogger(string fileName)
 		{
@@ -40,7 +40,7 @@ internal class FileLoggerProvider : ILoggerProvider
 
 		public string FileName { get; }
 
-		private static readonly object SyncRoot = new object();
+		private static readonly object SyncRoot = new();
 
 		private static readonly IDisposable Scope = new NullScope();
 
@@ -58,7 +58,7 @@ internal class FileLoggerProvider : ILoggerProvider
 		}
 
 
-		private class NullScope : IDisposable
+		private sealed class NullScope : IDisposable
 		{
 			public void Dispose() { }
 		}

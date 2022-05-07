@@ -20,6 +20,7 @@ using PhotoArchiver.Storage;
 using PhotoArchiver.Thumbnails;
 using PhotoArchiver.Update;
 using PhotoArchiver.Upload;
+using PhotoArchiver.Console;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
@@ -104,6 +105,9 @@ using var host = Host.CreateDefaultBuilder(args)
 		{
 			services.AddSingleton<IProgressIndicator, NullProgressIndicator>();
 		}
+
+		// worker
+		services.AddHostedService<AppWorker>();
 	})
 	.UseConsoleLifetime()
 	.Build();

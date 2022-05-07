@@ -2,17 +2,13 @@
 
 namespace PhotoArchiver.Costs;
 
-using Storage;
-
 public class CostEstimator
 {
-	public CostEstimator(IOptions<StorageOptions> storageOptions, IOptions<CostOptions> costOptions)
+	public CostEstimator(IOptions<CostOptions> costOptions)
 	{
-		StorageOptions = storageOptions;
 		CostOptions = costOptions.Value;
 	}
 
-	protected IOptions<StorageOptions> StorageOptions { get; }
 	protected CostOptions CostOptions { get; }
 
 	private const long GB = 1024 * 1024 * 1024;

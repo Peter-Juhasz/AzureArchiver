@@ -1,6 +1,4 @@
-﻿
-using Microsoft.Extensions.Options;
-
+﻿using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
