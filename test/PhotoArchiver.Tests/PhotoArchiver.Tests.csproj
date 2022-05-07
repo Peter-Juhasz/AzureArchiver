@@ -13,7 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\PhotoArchiver\PhotoArchiver.csproj" />
+		<ProjectReference Include="..\..\src\PhotoArchiver\PhotoArchiver.csproj" />
 	</ItemGroup>
 
 </Project>
