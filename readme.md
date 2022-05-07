@@ -125,7 +125,7 @@ Requirements:
  - [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/)
 
 Configuration:
- - `ComputerVision` Azure Cognitive Services Computer Vision credentials for image tagging
+ - `ComputerVision`
    - **`Endpoint`**: URL of the Cognitive Service account endpoint
    - **`Key`**: subscription key for the service
 
@@ -137,10 +137,29 @@ Requirements:
    - A pre-trained Person Group.
 
 Configuration:
- - `Face` Azure Cognitive Services Face credentials for face identification
+ - `Face`
    - **`Endpoint`**: URL of the Cognitive Service account endpoint
    - **`Key`**: subscription key for the service
    - `ConfidenceThreshold`: confidence threshold of identification, used to judge whether one face belong to one person
+
+### Application Insights
+Collect detailed operational logs.
+
+Requirements:
+ - [Azure Application Insights](https://azure.microsoft.com/en-us/services/monitor/)
+
+Configuration:
+ - `ApplicationInsights` see [ApplicationInsightsServiceOptions](https://docs.microsoft.com/en-us/azure/azure-monitor/app/asp-net-core#using-applicationinsightsserviceoptions) for reference
+   - **`ConnectionString`**: connection string for the resource
+   - `EnableAdaptiveSampling`: enable/disable Adaptive Sampling
+
+### Updates
+Configure update options.
+
+Configuration:
+ - `Update`
+   - `Enabled`: check for updates at startup
+   - `Stop`: do not proceed if an update is found
 
 ## Information
 
