@@ -544,6 +544,12 @@ public partial class Archiver
 	[SuppressMessage("Globalization", "CA1305:Specify IFormatProvider", Justification = "<Pending>")]
 	internal static bool TryParseDate(string fileName, out DateTime result)
 	{
+		// .trashed-1703123456-IMG_20190525_120904.jpg
+		if (fileName.Length >= ".trashed-1703123456-".Length + 4 && fileName.StartsWith(".trashed-") && fileName[".trashed".Length] == '-' && fileName[".trashed-1703123456".Length] == '-')
+		{
+			fileName = fileName[".trashed-1703123456-".Length..];
+		}
+
 		// IMG_20190525_120904
 		// VID_20181226_163237
 		// PXL_20181226_163237
