@@ -559,6 +559,13 @@ public partial class Archiver
 			return true;
 		}
 
+		// Screenshot_20190525_120904 
+		if (fileName.Length >= "Screenshot_20190525_120904".Length + 4 && fileName.StartsWith("Screenshot_2") && fileName["Screenshot".Length] == '_' && fileName["Screenshot_20190525".Length] == '_')
+		{
+			result = new DateTime(Int32.Parse(fileName.Substring("Screenshot_".Length, 4)), Int32.Parse(fileName.Substring("Screenshot_2019".Length, 2)), Int32.Parse(fileName.Substring("Screenshot_201905".Length, 2)));
+			return true;
+		}
+
 		// WP_20140711_15_25_11_0_Pro
 		if (fileName.Length >= 11 + 4 && fileName.StartsWith("WP_") && fileName[11] == '_')
 		{
