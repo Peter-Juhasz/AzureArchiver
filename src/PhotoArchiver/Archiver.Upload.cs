@@ -90,7 +90,7 @@ public partial class Archiver
 				Logger.LogTrace($"Processing {file}...");
 
 				// read date
-				var date = await GetDateAsync(item, files);
+				var date = await GetDateAsync(item, files, cancellationToken);
 				if (date == null)
 				{
 					result = UploadResult.DateMissing;
@@ -403,7 +403,7 @@ public partial class Archiver
 		return UploadResult.Uploaded;
 	}
 
-	private async ValueTask<DateTime?> GetDateAsync(FileUploadItem item, IEnumerable<IFile> peers)
+	private async ValueTask<DateTime?> GetDateAsync(FileUploadItem item, IEnumerable<IFile> peers, CancellationToken cancellationToken)
 	{
 		Logger.LogTrace($"Reading date for {item.Info}...");
 
@@ -441,7 +441,7 @@ public partial class Archiver
 					if (jpeg != null)
 					{
 						await using var item2 = new FileUploadItem(jpeg);
-						return await GetDateAsync(item2, peers);
+						return await GetDateAsync(item2, peers, cancellationToken);
 					}
 
 					if (item.Info.GetExtension().Equals(".dng", StringComparison.OrdinalIgnoreCase))
@@ -450,7 +450,7 @@ public partial class Archiver
 						if (jpeg != null)
 						{
 							await using var item2 = new FileUploadItem(jpeg);
-							return await GetDateAsync(item2, peers);
+							return await GetDateAsync(item2, peers, cancellationToken);
 						}
 					}
 				}
@@ -474,7 +474,7 @@ public partial class Archiver
 
 			case ".AVI":
 				{
-					var date = await AviDateReader.ReadAsync(await item.OpenReadAsync());
+					var date = await AviDateReader.ReadAsync(await item.OpenReadAsync(), cancellationToken);
 					if (date != null)
 					{
 						return date;
@@ -496,7 +496,7 @@ public partial class Archiver
 					if (mp4 != null)
 					{
 						using var item2 = new FileUploadItem(mp4);
-						return await GetDateAsync(item2, peers);
+						return await GetDateAsync(item2, peers, cancellationToken);
 					}
 				}
 				break;
