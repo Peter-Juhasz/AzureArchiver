@@ -6,7 +6,6 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.QuickTime;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
-using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics.CodeAnalysis;
@@ -158,21 +157,7 @@ public partial class Archiver
 					{
 						try
 						{
-							// create thumbnail
-							using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), 1024, 1024);
-
-							// detect
-							Logger.LogTrace($"Detecing faces in {file}...");
-							var faceResult = await FaceClient.Face.DetectWithStreamAsync(thumbnail, returnFaceId: true, cancellationToken: cancellationToken);
-							CostEstimator.AddFace();
-							var faceIds = faceResult.Where(f => f.FaceId != null).Select(f => f.FaceId!.Value).ToList();
-							var identifyResult = await FaceClient.Face.IdentifyAsync(faceIds, personGroupId: FaceOptions.PersonGroupId, confidenceThreshold: FaceOptions.ConfidenceThreshold, cancellationToken: cancellationToken);
-							CostEstimator.AddFace();
-
-							if (identifyResult.Any())
-							{
-								item.Metadata.Add("People", String.Join(", ", identifyResult.Select(r => r.Candidates.OrderByDescending(c => c.Confidence).First()).Select(c => c.PersonId)));
-							}
+							throw new NotImplementedException("Face support has been temporarily removed.");
 						}
 						catch (Exception ex)
 						{

@@ -1,6 +1,5 @@
 ﻿using Azure.Storage.Blobs;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
-using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -59,16 +58,6 @@ using var host = Host.CreateDefaultBuilder(args)
 
 		// face
 		.Configure<FaceOptions>(configuration.GetSection("Face"))
-		.AddSingleton<IFaceClient>(sp =>
-		{
-			var options = sp.GetRequiredService<IOptions<FaceOptions>>().Value;
-			var client = new FaceClient(new Microsoft.Azure.CognitiveServices.Vision.Face.ApiKeyServiceClientCredentials(options.Key));
-			if (options.Endpoint != null)
-			{
-				client.Endpoint = options.Endpoint.ToString();
-			}
-			return client;
-		})
 
 		// costs
 		.Configure<CostOptions>(configuration.GetSection("Costs"))
