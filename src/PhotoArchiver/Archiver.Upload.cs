@@ -4,8 +4,6 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
 using MetadataExtractor;
 using MetadataExtractor.Formats.QuickTime;
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics.CodeAnalysis;
@@ -130,23 +128,9 @@ public partial class Archiver
 					{
 						try
 						{
-							// create thumbnail
-							using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), 1024, 1024);
-
-							// describe
-							Logger.LogTrace($"Describing {file}...");
-							var description = await ComputerVisionClient.DescribeImageInStreamAsync(thumbnail, cancellationToken: cancellationToken);
-							CostEstimator.AddDescribe();
-							if (description.Captions.Any())
-							{
-								item.Metadata.Add("Caption", description.Captions.OrderByDescending(c => c.Confidence).First().Text);
-							}
-							if (description.Tags.Any())
-							{
-								item.Metadata.Add("Tags", String.Join(", ", description.Tags));
-							}
+							throw new NotImplementedException("Vision support has been temporarily removed.");
 						}
-						catch (ComputerVisionErrorResponseException ex)
+						catch (Exception ex)
 						{
 							Logger.LogWarning(ex, ex.Message);
 						}

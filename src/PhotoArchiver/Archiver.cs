@@ -1,6 +1,5 @@
 ﻿using Azure.Storage;
 using Azure.Storage.Blobs;
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Runtime.CompilerServices;
@@ -29,7 +28,6 @@ public partial class Archiver
 		BlobServiceClient client,
 		IThumbnailGenerator thumbnailGenerator,
 		IDeduplicationService deduplicationService,
-		IComputerVisionClient computerVisionClient,
 		CostEstimator costEstimator,
 		IProgressIndicator progressIndicator,
 		ILogger<Archiver> logger
@@ -43,7 +41,6 @@ public partial class Archiver
 		Client = client;
 		ThumbnailGenerator = thumbnailGenerator;
 		DeduplicationService = deduplicationService;
-		ComputerVisionClient = computerVisionClient;
 		CostEstimator = costEstimator;
 		ProgressIndicator = progressIndicator;
 		Logger = logger;
@@ -57,7 +54,6 @@ public partial class Archiver
 	protected BlobServiceClient Client { get; }
 	protected IThumbnailGenerator ThumbnailGenerator { get; }
 	protected IDeduplicationService DeduplicationService { get; }
-	protected IComputerVisionClient ComputerVisionClient { get; }
 	protected CostEstimator CostEstimator { get; }
 	protected IProgressIndicator ProgressIndicator { get; }
 	protected ILogger<Archiver> Logger { get; }

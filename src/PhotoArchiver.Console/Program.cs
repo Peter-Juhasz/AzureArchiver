@@ -1,5 +1,4 @@
 ﻿using Azure.Storage.Blobs;
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -45,16 +44,6 @@ using var host = Host.CreateDefaultBuilder(args)
 
 		// vision
 		.Configure<ComputerVisionOptions>(configuration.GetSection("ComputerVision"))
-		.AddSingleton<IComputerVisionClient>(sp =>
-		{
-			var options = sp.GetRequiredService<IOptions<ComputerVisionOptions>>().Value;
-			var client = new ComputerVisionClient(new Microsoft.Azure.CognitiveServices.Vision.ComputerVision.ApiKeyServiceClientCredentials(options.Key));
-			if (options.Endpoint != null)
-			{
-				client.Endpoint = options.Endpoint.ToString();
-			}
-			return client;
-		})
 
 		// face
 		.Configure<FaceOptions>(configuration.GetSection("Face"))
