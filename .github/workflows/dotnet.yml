@@ -51,7 +51,7 @@ jobs:
 
     - name: Publish
       working-directory: src/PhotoArchiver.Console
-      run: dotnet publish --no-build --configuration Release
+      run: dotnet publish --configuration Release
       
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
