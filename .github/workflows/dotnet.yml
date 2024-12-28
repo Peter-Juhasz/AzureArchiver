@@ -1,11 +1,13 @@
-name: .NET
+name: CLI
 
 on:
   push:
     branches:
+      - main
       - master
   pull_request:
     branches:
+      - main
       - master
 
 jobs:
@@ -38,9 +40,21 @@ jobs:
       run: dotnet restore
     - name: Check dependencies for deprecated packages
       run: dotnet list package --deprecated
+    - name: Check dependencies for vulnerable packages
+      run: dotnet list package --vulnerable --include-transitive
 
     - name: Build
       run: dotnet build --no-restore
 
     - name: Test
       run: dotnet test --no-build --verbosity normal --collect "Code coverage"
+
+    - name: Publish
+      working-directory: src/PhotoArchiver.Console
+      run: dotnet publish --no-build --configuration Release
+      
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dotnet
+        path: src/*.Console/bin/Release/*/publish/
