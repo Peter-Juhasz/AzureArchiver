@@ -275,7 +275,8 @@ public partial class Archiver
 					// thumbnail
 					if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled() && (result == UploadResult.Uploaded || ThumbnailOptions.Force))
 					{
-						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(cancellationToken), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value, cancellationToken);
+						await using var stream = await item.OpenReadAsync(cancellationToken);
+						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(stream, ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value, cancellationToken);
 
 						var thumbnailContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
 						var thumbnailBlob = thumbnailContainer.GetBlockBlobClient(blob.Name);
@@ -392,12 +393,15 @@ public partial class Archiver
 
 		try
 		{
-			await blob.UploadAsync(await item.OpenReadAsync(cancellationToken), headers, item.Metadata, progressHandler: progress);
+			await using var stream = await item.OpenReadAsync(cancellationToken);
+			await blob.UploadAsync(stream, headers, item.Metadata, progressHandler: progress, cancellationToken: cancellationToken);
 		}
 		catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
 		{
-			await container.CreateIfNotExistsAsync();
-			await blob.UploadAsync(await item.OpenReadAsync(cancellationToken), headers, item.Metadata, progressHandler: progress);
+			await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+
+			await using var stream = await item.OpenReadAsync(cancellationToken);
+			await blob.UploadAsync(stream, headers, item.Metadata, progressHandler: progress, cancellationToken: cancellationToken);
 		}
 		CostEstimator.AddWrite(await item.Info.GetSizeAsync(cancellationToken));
 
@@ -416,7 +420,8 @@ public partial class Archiver
 			case ".HEIF":
 			case ".HEIC":
 				{
-					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
+					await using var stream = await item.OpenReadAsync(cancellationToken);
+					var metadata = ImageMetadataReader.ReadMetadata(stream);
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
 					if (tag != null)
 					{
@@ -430,7 +435,8 @@ public partial class Archiver
 			case ".DNG":
 			case ".GPR":
 				{
-					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
+					await using var stream = await item.OpenReadAsync(cancellationToken);
+					var metadata = ImageMetadataReader.ReadMetadata(stream);
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
 					if (tag != null)
 					{
@@ -460,7 +466,8 @@ public partial class Archiver
 			case ".MP4":
 			case ".MOV":
 				{
-					var metadata = QuickTimeMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
+					await using var stream = await item.OpenReadAsync(cancellationToken);
+					var metadata = QuickTimeMetadataReader.ReadMetadata(stream);
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
 					if (tag != null)
 					{
@@ -475,7 +482,8 @@ public partial class Archiver
 
 			case ".AVI":
 				{
-					var date = await AviDateReader.ReadAsync(await item.OpenReadAsync(cancellationToken), cancellationToken);
+					await using var stream = await item.OpenReadAsync(cancellationToken);
+					var date = await AviDateReader.ReadAsync(stream, cancellationToken);
 					if (date != null)
 					{
 						return date;
@@ -496,7 +504,7 @@ public partial class Archiver
 					var mp4 = peers.FirstOrDefault(p => p.Path.Equals(Path.ChangeExtension(item.Info.Path, ".mp4"), StringComparison.CurrentCultureIgnoreCase));
 					if (mp4 != null)
 					{
-						using var item2 = new FileUploadItem(mp4);
+						await using var item2 = new FileUploadItem(mp4);
 						return await GetDateAsync(item2, peers, cancellationToken);
 					}
 				}
