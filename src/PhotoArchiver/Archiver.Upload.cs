@@ -20,6 +20,7 @@ using Formats;
 
 using Progress;
 using Storage;
+using System.Threading;
 using Thumbnails;
 using Upload;
 
@@ -65,7 +66,7 @@ public partial class Archiver
 		var processedBytes = 0L;
 		var allBytes = 0L;
 		foreach (var f in files)
-			allBytes += await f.GetSizeAsync();
+			allBytes += await f.GetSizeAsync(cancellationToken);
 
 		// enumerate files in directory
 		progressIndicator.Initialize(allBytes, files.Count);
@@ -97,7 +98,7 @@ public partial class Archiver
 					results.Add(new FileUploadResult(file, result));
 					Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
 					processedCount++;
-					processedBytes += await item.Info.GetSizeAsync();
+					processedBytes += await item.Info.GetSizeAsync(cancellationToken);
 					progressIndicator.SetItemProgress(processedCount);
 					progressIndicator.SetBytesProgress(processedBytes);
 					continue;
@@ -107,13 +108,13 @@ public partial class Archiver
 				var blobDirectory = String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date);
 				item.Metadata.Add("OriginalFileName", file.Path.RemoveDiacritics());
 				item.Metadata.Add("CreatedAt", date.Value.ToString("o", CultureInfo.InvariantCulture));
-				item.Metadata.Add("OriginalFileSize", (await file.GetSizeAsync()).ToString(CultureInfo.InvariantCulture));
+				item.Metadata.Add("OriginalFileSize", (await file.GetSizeAsync(cancellationToken)).ToString(CultureInfo.InvariantCulture));
 
 				// deduplicate
 				if (Options.Deduplicate)
 				{
 					Logger.LogTrace($"Computing hash for {file}...");
-					var hash = await item.ComputeHashAsync();
+					var hash = await item.ComputeHashAsync(cancellationToken);
 
 					if (await DeduplicationService.ContainsAsync(container, blobDirectory, hash))
 					{
@@ -157,11 +158,11 @@ public partial class Archiver
 				if (result != UploadResult.AlreadyExists)
 				{
 					// check for extistance
-					switch (await ExistsAndCompareAsync(blob, item))
+					switch (await ExistsAndCompareAsync(blob, item, cancellationToken))
 					{
 						// upload, if not exists
 						case null:
-							result = await UploadCoreAsync(container, blob, item, progress);
+							result = await UploadCoreAsync(container, blob, item, progress, cancellationToken);
 							break;
 
 						// already exists, if matches
@@ -176,7 +177,7 @@ public partial class Archiver
 								case ConflictResolution.KeepBoth:
 									{
 										// compute hash for new file name
-										var fileHash = await item.ComputeHashAsync();
+										var fileHash = await item.ComputeHashAsync(cancellationToken);
 										var formattedHash = Convert.ToHexString(fileHash);
 
 										// new blob
@@ -184,10 +185,10 @@ public partial class Archiver
 										blob = container.GetBlockBlobClient(blobName);
 
 										// upload with new name
-										switch (await ExistsAndCompareAsync(blob, item))
+										switch (await ExistsAndCompareAsync(blob, item, cancellationToken))
 										{
 											case null:
-												result = await UploadCoreAsync(container, blob, item, progress);
+												result = await UploadCoreAsync(container, blob, item, progress, cancellationToken);
 												break;
 
 											case false:
@@ -212,7 +213,7 @@ public partial class Archiver
 										}
 
 										await blob.CreateSnapshotAsync(cancellationToken: cancellationToken);
-										result = await UploadCoreAsync(container, blob, item, progress);
+										result = await UploadCoreAsync(container, blob, item, progress, cancellationToken);
 									}
 									break;
 
@@ -225,7 +226,7 @@ public partial class Archiver
 											await blob.DeleteAsync(cancellationToken: cancellationToken);
 										}
 
-										result = await UploadCoreAsync(container, blob, item, progress);
+										result = await UploadCoreAsync(container, blob, item, progress, cancellationToken);
 									}
 									break;
 
@@ -246,7 +247,7 @@ public partial class Archiver
 							var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
 
 							// compute file hash
-							var fileHash = await item.ComputeHashAsync();
+							var fileHash = await item.ComputeHashAsync(cancellationToken);
 							var blobHash = properties.ContentHash;
 							if (blobHash == null)
 							{
@@ -263,7 +264,7 @@ public partial class Archiver
 						// deduplicate
 						if (Options.Deduplicate)
 						{
-							var hash = await item.ComputeHashAsync();
+							var hash = await item.ComputeHashAsync(cancellationToken);
 							DeduplicationService.Add(blobDirectory, hash);
 						}
 					}
@@ -274,7 +275,7 @@ public partial class Archiver
 					// thumbnail
 					if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled() && (result == UploadResult.Uploaded || ThumbnailOptions.Force))
 					{
-						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
+						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(cancellationToken), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
 
 						var thumbnailContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
 						var thumbnailBlob = thumbnailContainer.GetBlockBlobClient(blob.Name);
@@ -313,7 +314,7 @@ public partial class Archiver
 					if (Options.Delete)
 					{
 						Logger.LogTrace($"Deleting {file}...");
-						await file.DeleteAsync();
+						await file.DeleteAsync(cancellationToken);
 					}
 				}
 
@@ -331,7 +332,7 @@ public partial class Archiver
 			finally
 			{
 				processedCount++;
-				processedBytes += await item.Info.GetSizeAsync();
+				processedBytes += await item.Info.GetSizeAsync(cancellationToken);
 				progressIndicator.SetItemProgress(processedCount);
 				progressIndicator.SetBytesProgress(processedBytes);
 			}
@@ -342,7 +343,7 @@ public partial class Archiver
 		return new ArchiveResult(results);
 	}
 
-	private async Task<bool?> ExistsAndCompareAsync(BlockBlobClient blob, FileUploadItem item)
+	private async Task<bool?> ExistsAndCompareAsync(BlockBlobClient blob, FileUploadItem item, CancellationToken cancellationToken)
 	{
 		// check for exists
 		Logger.LogTrace($"Checking for {blob} exists...");
@@ -354,13 +355,13 @@ public partial class Archiver
 			CostEstimator.AddOther();
 
 			// compare file size
-			if (properties.ContentLength != await item.Info.GetSizeAsync())
+			if (properties.ContentLength != await item.Info.GetSizeAsync(cancellationToken))
 			{
 				return false;
 			}
 
 			// compare hash
-			var fileHash = await item.ComputeHashAsync();
+			var fileHash = await item.ComputeHashAsync(cancellationToken);
 			var blobHash = properties.ContentHash;
 			if (blobHash == null)
 			{
@@ -379,7 +380,7 @@ public partial class Archiver
 		return null;
 	}
 
-	private async Task<UploadResult> UploadCoreAsync(BlobContainerClient container, BlockBlobClient blob, FileUploadItem item, IProgress<long> progress)
+	private async Task<UploadResult> UploadCoreAsync(BlobContainerClient container, BlockBlobClient blob, FileUploadItem item, IProgress<long> progress, CancellationToken cancellationToken)
 	{
 		// upload
 		Logger.LogTrace($"Uploading {item.Info} to {blob}...");
@@ -391,14 +392,14 @@ public partial class Archiver
 
 		try
 		{
-			await blob.UploadAsync(await item.OpenReadAsync(), headers, item.Metadata, progressHandler: progress);
+			await blob.UploadAsync(await item.OpenReadAsync(cancellationToken), headers, item.Metadata, progressHandler: progress);
 		}
 		catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
 		{
 			await container.CreateIfNotExistsAsync();
-			await blob.UploadAsync(await item.OpenReadAsync(), headers, item.Metadata, progressHandler: progress);
+			await blob.UploadAsync(await item.OpenReadAsync(cancellationToken), headers, item.Metadata, progressHandler: progress);
 		}
-		CostEstimator.AddWrite(await item.Info.GetSizeAsync());
+		CostEstimator.AddWrite(await item.Info.GetSizeAsync(cancellationToken));
 
 		return UploadResult.Uploaded;
 	}
@@ -415,7 +416,7 @@ public partial class Archiver
 			case ".HEIF":
 			case ".HEIC":
 				{
-					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
+					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
 					if (tag != null)
 					{
@@ -429,7 +430,7 @@ public partial class Archiver
 			case ".DNG":
 			case ".GPR":
 				{
-					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync());
+					var metadata = ImageMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Date/Time Original" || t.Name == "Date/Time");
 					if (tag != null)
 					{
@@ -459,7 +460,7 @@ public partial class Archiver
 			case ".MP4":
 			case ".MOV":
 				{
-					var metadata = QuickTimeMetadataReader.ReadMetadata(await item.OpenReadAsync());
+					var metadata = QuickTimeMetadataReader.ReadMetadata(await item.OpenReadAsync(cancellationToken));
 					var tag = metadata.SelectMany(d => d.Tags).FirstOrDefault(t => t.Name == "Created");
 					if (tag != null)
 					{
@@ -474,7 +475,7 @@ public partial class Archiver
 
 			case ".AVI":
 				{
-					var date = await AviDateReader.ReadAsync(await item.OpenReadAsync(), cancellationToken);
+					var date = await AviDateReader.ReadAsync(await item.OpenReadAsync(cancellationToken), cancellationToken);
 					if (date != null)
 					{
 						return date;

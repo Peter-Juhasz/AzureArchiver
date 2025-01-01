@@ -199,7 +199,7 @@ public partial class Archiver
 		// download
 		try
 		{
-			using var stream = await file.OpenWriteAsync();
+			using var stream = await file.OpenWriteAsync(cancellationToken);
 			await client.DownloadToAsync(stream, cancellationToken);
 			CostEstimator.AddRead(blob.Properties.ContentLength ?? 0);
 
@@ -214,7 +214,7 @@ public partial class Archiver
 				}
 
 				// compute downloaded file hash
-				using var verifyStream = await file.OpenReadAsync();
+				using var verifyStream = await file.OpenReadAsync(cancellationToken);
 				using var hashAlgorithm = MD5.Create();
 				var hash = hashAlgorithm.ComputeHash(verifyStream);
 

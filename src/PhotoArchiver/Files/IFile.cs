@@ -6,13 +6,13 @@ public interface IFile
 
 	string Path { get; }
 
-	Task<long> GetSizeAsync();
+	Task<long> GetSizeAsync(CancellationToken cancellationToken);
 
-	Task<Stream> OpenReadAsync();
+	Task<Stream> OpenReadAsync(CancellationToken cancellationToken);
 
-	Task DeleteAsync();
+	Task DeleteAsync(CancellationToken cancellationToken);
 
-	Task<Stream> OpenWriteAsync();
+	Task<Stream> OpenWriteAsync(CancellationToken cancellationToken);
 }
 
 public static class FileExtensions

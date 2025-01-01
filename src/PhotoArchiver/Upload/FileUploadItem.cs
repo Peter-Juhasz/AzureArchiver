@@ -21,27 +21,27 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 	private byte[]? Hash { get; set; }
 
 	[MemberNotNull(nameof(Buffer))]
-	private async Task EnsureLoadedAsync()
+	private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
 	{
 		if (Buffer == null)
 		{
-			using var fileStream = await Info.OpenReadAsync();
-			Buffer = await BinaryData.FromStreamAsync(fileStream);
+			using var fileStream = await Info.OpenReadAsync(cancellationToken);
+			Buffer = await BinaryData.FromStreamAsync(fileStream, cancellationToken);
 		}
 	}
 
-	public async Task<Stream> OpenReadAsync()
+	public async Task<Stream> OpenReadAsync(CancellationToken cancellationToken)
 	{
-		await EnsureLoadedAsync();
+		await EnsureLoadedAsync(cancellationToken);
 
 		return Buffer.ToStream();
 	}
 
-	public async Task<byte[]> ComputeHashAsync()
+	public async Task<byte[]> ComputeHashAsync(CancellationToken cancellationToken)
 	{
 		if (Hash == null)
 		{
-			await EnsureLoadedAsync();
+			await EnsureLoadedAsync(cancellationToken);
 
 			Hash = MD5.HashData(Buffer);
 			Metadata.Add(BlobMetadataKeys.OriginalMd5, Convert.ToBase64String(Hash));
