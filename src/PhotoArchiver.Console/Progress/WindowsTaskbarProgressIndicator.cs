@@ -25,15 +25,8 @@ internal class WindowsTaskbarProgressIndicator : IProgressIndicator
 
 	public void Initialize(long allBytes, long allItems)
 	{
-		if (allBytes < 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(allBytes));
-		}
-
-		if (allItems < 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(allItems));
-		}
+		ArgumentOutOfRangeException.ThrowIfNegative(allBytes);
+		ArgumentOutOfRangeException.ThrowIfNegative(allItems);
 
 		AllBytes = allBytes;
 		TaskbarProgress.SetState(WindowHandle, TaskbarProgress.TaskbarStates.Normal);
@@ -46,10 +39,7 @@ internal class WindowsTaskbarProgressIndicator : IProgressIndicator
 
 	public void SetBytesProgress(long processed)
 	{
-		if (processed < 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(processed));
-		}
+		ArgumentOutOfRangeException.ThrowIfNegative(processed);
 
 		if (processed > AllBytes)
 		{

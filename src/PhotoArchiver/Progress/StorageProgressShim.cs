@@ -1,18 +1,9 @@
 ﻿namespace PhotoArchiver.Progress;
 
-public sealed class StorageProgressShim : IProgress<long>
+public sealed record StorageProgressShim(IProgressIndicator ProgressIndicator, long SnapshotBytes) : IProgress<long>
 {
-	public StorageProgressShim(IProgressIndicator progressIndicator, long snaphotBytes)
-	{
-		ProgressIndicator = progressIndicator;
-		SnaphotBytes = snaphotBytes;
-	}
-
-	public IProgressIndicator ProgressIndicator { get; }
-	public long SnaphotBytes { get; }
-
 	public void Report(long value)
 	{
-		ProgressIndicator.SetBytesProgress(SnaphotBytes + value);
+		ProgressIndicator.SetBytesProgress(SnapshotBytes + value);
 	}
 }

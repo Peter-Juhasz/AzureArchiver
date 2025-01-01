@@ -1,4 +1,6 @@
-﻿namespace PhotoArchiver.Files;
+﻿using System.Runtime.CompilerServices;
+
+namespace PhotoArchiver.Files;
 
 public class SystemIODirectory : IDirectory
 {
@@ -31,8 +33,13 @@ public class SystemIODirectory : IDirectory
 		return Task.FromResult(new SystemIOFile(new FileInfo(System.IO.Path.Combine(Directory.FullName, name))) as IFile);
 	}
 
-	public Task<IReadOnlyList<IFile>> GetFilesAsync(CancellationToken cancellationToken)
+#pragma warning disable CS1998
+	public async IAsyncEnumerable<IFile> GetFilesAsync([EnumeratorCancellation] CancellationToken cancellationToken)
 	{
-		return Task.FromResult(Directory.GetFiles("*", SearchOption.AllDirectories).Select(f => new SystemIOFile(f)).ToList() as IReadOnlyList<IFile>);
+		foreach (var fileInfo in Directory.GetFiles("*", SearchOption.AllDirectories))
+		{
+			yield return new SystemIOFile(fileInfo);
+		}
 	}
+#pragma warning restore CS1998
 }

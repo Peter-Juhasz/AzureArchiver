@@ -11,5 +11,5 @@ public enum UploadResult
 
 public static partial class UploadResultExtensions
 {
-	public static bool IsSuccessful(this UploadResult result) => result == UploadResult.Uploaded || result == UploadResult.AlreadyExists;
+	public static bool IsSuccessful(this UploadResult result) => result is UploadResult.Uploaded or UploadResult.AlreadyExists;
 }

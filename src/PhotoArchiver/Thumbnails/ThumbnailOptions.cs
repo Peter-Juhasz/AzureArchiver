@@ -16,7 +16,7 @@ public class ThumbnailOptions
 	public bool Force { get; set; } = false;
 
 
-	public bool IsEnabled() => MaxWidth != null && MaxHeight != null;
+	public bool IsEnabled() => this is { MaxHeight: > 0, MaxWidth: > 0 };
 
 
 	[SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "<Pending>")]

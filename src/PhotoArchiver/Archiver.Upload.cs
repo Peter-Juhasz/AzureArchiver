@@ -20,7 +20,6 @@ using Formats;
 
 using Progress;
 using Storage;
-using System.Threading;
 using Thumbnails;
 using Upload;
 
@@ -28,12 +27,17 @@ public partial class Archiver
 {
 	public async Task<ArchiveResult> ArchiveAsync(IDirectory directory, IProgressIndicator progressIndicator, CancellationToken cancellationToken)
 	{
+		var files = directory.GetFilesAsync(cancellationToken);
+		var query = files;
+		
 		// set up filter
-		var matcher = new Matcher().AddInclude(Options.SearchPattern);
-		var files = await directory.GetFilesAsync(cancellationToken);
+		if (Options.SearchPattern != null)
+		{
+			var matcher = new Matcher().AddInclude(Options.SearchPattern);
+			query = query.Where(f => matcher.Match(directory.Path, f.Path).HasMatches);
+		}
 
-		var query = files.Where(f => matcher.Match(directory.Path, f.Path).HasMatches)
-			.OrderBy(f => f.Path)
+		query = query.OrderBy(f => f.Path)
 			.Where(f => !IgnoredFileNames.Contains(f.Name))
 			.Where(f => !IgnoredExtensions.Contains(f.GetExtension()));
 
@@ -47,7 +51,7 @@ public partial class Archiver
 			query = query.Take(Options.Take.Value);
 		}
 
-		return await ArchiveAsync(query.ToList(), progressIndicator, cancellationToken);
+		return await ArchiveAsync(await query.ToListAsync(cancellationToken), progressIndicator, cancellationToken);
 	}
 
 	[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
@@ -66,7 +70,9 @@ public partial class Archiver
 		var processedBytes = 0L;
 		var allBytes = 0L;
 		foreach (var f in files)
+		{
 			allBytes += await f.GetSizeAsync(cancellationToken);
+		}
 
 		// enumerate files in directory
 		progressIndicator.Initialize(allBytes, files.Count);
@@ -349,10 +355,10 @@ public partial class Archiver
 		// check for exists
 		Logger.LogTrace($"Checking for {blob} exists...");
 		CostEstimator.AddOther();
-		if (await blob.ExistsAsync())
+		if (await blob.ExistsAsync(cancellationToken))
 		{
 			Logger.LogTrace($"Fetching attributes for {blob}...");
-			var properties = (await blob.GetPropertiesAsync()).Value;
+			var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
 			CostEstimator.AddOther();
 
 			// compare file size

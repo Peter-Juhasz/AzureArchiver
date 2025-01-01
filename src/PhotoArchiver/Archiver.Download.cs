@@ -216,7 +216,7 @@ public partial class Archiver
 				// compute downloaded file hash
 				using var verifyStream = await file.OpenReadAsync(cancellationToken);
 				using var hashAlgorithm = MD5.Create();
-				var hash = hashAlgorithm.ComputeHash(verifyStream);
+				var hash = await hashAlgorithm.ComputeHashAsync(verifyStream, cancellationToken);
 
 				// compare
 				if (!blobHash.AsSpan().SequenceEqual(hash))
@@ -243,7 +243,7 @@ public partial class Archiver
 
 	private static bool Match(BlobItem blob, DownloadOptions options)
 	{
-		if (options.Tags?.Any() ?? false)
+		if (options.Tags?.Count > 0)
 		{
 			if (blob.Metadata.TryGetValue("Tags", out var tags))
 			{
@@ -255,7 +255,7 @@ public partial class Archiver
 			}
 		}
 
-		if (options.People?.Any() ?? false)
+		if (options.People?.Count > 0)
 		{
 			if (blob.Metadata.TryGetValue("People", out var people))
 			{

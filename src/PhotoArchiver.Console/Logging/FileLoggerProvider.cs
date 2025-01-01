@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Threading;
 
 namespace PhotoArchiver.Logging;
 
@@ -31,16 +32,11 @@ internal class FileLoggerProvider : ILoggerProvider
 	public void Dispose() { }
 
 
-	private sealed class FileLogger : ILogger
+	private sealed class FileLogger(string fileName) : ILogger
 	{
-		public FileLogger(string fileName)
-		{
-			FileName = fileName;
-		}
+		public string FileName { get; } = fileName;
 
-		public string FileName { get; }
-
-		private static readonly object SyncRoot = new();
+		private static readonly Lock SyncRoot = new();
 
 		private static readonly IDisposable Scope = new NullScope();
 

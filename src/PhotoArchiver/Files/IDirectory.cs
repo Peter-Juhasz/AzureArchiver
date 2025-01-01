@@ -6,7 +6,7 @@ public interface IDirectory
 
 	string Path { get; }
 
-	Task<IReadOnlyList<IFile>> GetFilesAsync(CancellationToken cancellationToken);
+	IAsyncEnumerable<IFile> GetFilesAsync(CancellationToken cancellationToken);
 
 	Task<IFile> GetFileAsync(string name, CancellationToken cancellationToken);
 
