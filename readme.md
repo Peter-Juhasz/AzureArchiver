@@ -9,7 +9,7 @@ This app uploads and optionally encrypts your files like `IMG_20190727_123456.jp
 Requirements:
  - [Microsoft Azure subscription](https://azure.microsoft.com/)
    - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/) (General Purpose v2 or Blob)
- - [.NET Core 6 Runtime](https://dotnet.microsoft.com/download) installed on your machine
+ - [.NET Core 9 Runtime](https://dotnet.microsoft.com/download) installed on your machine
 
 Download [executable from Releases](https://github.com/Peter-Juhasz/AzureArchiver/releases) or clone the source code and build it yourself. [Read the best practices.](https://github.com/Peter-Juhasz/AzureArchiver/wiki/Best-Practices)
 
@@ -118,30 +118,6 @@ Configuration:
    - `ComputerVisionDescribeTransactionPricePer1000`: leave if empty if you don't use Computer Vision
    - `OutboundDataTransferPricePerGB`
 
-### Tagging and caption generation 
-Generates a caption and tags for each photo based on their visual content using [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/) and saves them to metadata.
-
-Requirements:
- - [Azure Cognitive Service Computer Vision](https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/)
-
-Configuration:
- - `ComputerVision`
-   - **`Endpoint`**: URL of the Cognitive Service account endpoint
-   - **`Key`**: subscription key for the service
-
-### Face identification
-Identifies familiar faces on photos using [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/) and saves them to blob metadata.
-
-Requirements:
- - [Azure Cognitive Service Face](https://azure.microsoft.com/en-us/services/cognitive-services/face-api/)
-   - A pre-trained Person Group.
-
-Configuration:
- - `Face`
-   - **`Endpoint`**: URL of the Cognitive Service account endpoint
-   - **`Key`**: subscription key for the service
-   - `ConfidenceThreshold`: confidence threshold of identification, used to judge whether one face belong to one person
-
 ### Application Insights
 Collect detailed operational logs.
 
@@ -206,8 +182,8 @@ Use at your own risk. The creator of this software takes no responsibility in mo
 ## Development
 
 Requirements:
- - Visual Studio 2022 Preview
- - .NET 6 SDK
+ - Visual Studio 2022
+ - .NET 9 SDK
 
 Also, set `Update:Enabled` to `false`, if you want to turn off update checks.
 
