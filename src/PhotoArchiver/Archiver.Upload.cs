@@ -116,7 +116,7 @@ public partial class Archiver
 					Logger.LogTrace($"Computing hash for {file}...");
 					var hash = await item.ComputeHashAsync(cancellationToken);
 
-					if (await DeduplicationService.ContainsAsync(container, blobDirectory, hash))
+					if (await DeduplicationService.ContainsAsync(container, blobDirectory, hash, cancellationToken))
 					{
 						result = UploadResult.AlreadyExists;
 					}
@@ -178,7 +178,7 @@ public partial class Archiver
 									{
 										// compute hash for new file name
 										var fileHash = await item.ComputeHashAsync(cancellationToken);
-										var formattedHash = Convert.ToHexString(fileHash);
+										var formattedHash = Convert.ToHexString(fileHash.Span);
 
 										// new blob
 										blobName = blobDirectory.TrimEnd('/') + "/" + Path.ChangeExtension(file.Name, "." + formattedHash + file.GetExtension());
@@ -255,7 +255,7 @@ public partial class Archiver
 							}
 
 							// compare
-							if (!blobHash.AsSpan().SequenceEqual(fileHash))
+							if (!blobHash.AsSpan().SequenceEqual(fileHash.Span))
 							{
 								throw new VerificationFailedException(item.Info, blob.Uri);
 							}
@@ -369,7 +369,7 @@ public partial class Archiver
 				return false;
 			}
 
-			if (!blobHash.AsSpan().SequenceEqual(fileHash.AsSpan()))
+			if (!blobHash.AsSpan().SequenceEqual(fileHash.Span))
 			{
 				return false;
 			}

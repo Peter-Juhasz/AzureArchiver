@@ -39,7 +39,7 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 		return Buffer.ToStream();
 	}
 
-	public async Task<byte[]> ComputeHashAsync(CancellationToken cancellationToken)
+	public async Task<ReadOnlyMemory<byte>> ComputeHashAsync(CancellationToken cancellationToken)
 	{
 		if (Hash == null)
 		{
