@@ -14,6 +14,7 @@ using Deduplication;
 using Face;
 using Progress;
 using Storage;
+using System.Collections.Frozen;
 using Thumbnails;
 using Upload;
 
@@ -73,7 +74,7 @@ public partial class Archiver
 		{ ".mov", "video/quicktime" },
 		{ ".avi", "video/x-msvideo" },
 		{ ".mpg", "video/mpeg" },
-	};
+	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
 	private static readonly IReadOnlyDictionary<UploadResult, LogLevel> UploadResultLogLevelMap = new Dictionary<UploadResult, LogLevel>()
 	{
@@ -82,19 +83,19 @@ public partial class Archiver
 		{ UploadResult.Conflict, LogLevel.Warning },
 		{ UploadResult.DateMissing, LogLevel.Warning },
 		{ UploadResult.Error, LogLevel.Error },
-	};
+	}.ToFrozenDictionary();
 
-	private static readonly IReadOnlyCollection<string> IgnoredFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+	private static readonly IReadOnlySet<string> IgnoredFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 	{
 		"Thumbs.db", // Windows Explorer
         "desktop.ini", // Windows Explorer
         "ZbThumbnail.info", // Canon PowerShot
-    };
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-	private static readonly IReadOnlyCollection<string> IgnoredExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+	private static readonly IReadOnlySet<string> IgnoredExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 	{
 		".thumb",
 		".thm", // Camera thumbnail
         ".tmp",
-	};
+	}.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }
