@@ -29,7 +29,7 @@ public partial class Archiver
 	{
 		var files = directory.GetFilesAsync(cancellationToken);
 		var query = files;
-		
+
 		// set up filter
 		if (Options.SearchPattern != null)
 		{
