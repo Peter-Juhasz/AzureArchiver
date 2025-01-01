@@ -1,8 +1,7 @@
 ﻿using System.Security.Cryptography;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PhotoArchiver.Upload;
-
-using Extensions;
 
 using Files;
 
@@ -17,28 +16,34 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 
 	public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
-	private Stream? Buffer { get; set; }
+	private BinaryData? Buffer { get; set; }
 
 	private byte[]? Hash { get; set; }
 
-	public async Task<Stream> OpenReadAsync()
+	[MemberNotNull(nameof(Buffer))]
+	private async Task EnsureLoadedAsync()
 	{
 		if (Buffer == null)
 		{
-			Buffer = new MemoryStream((int)await Info.GetSizeAsync());
 			using var fileStream = await Info.OpenReadAsync();
-			await fileStream.CopyToAsync(Buffer);
+			Buffer = await BinaryData.FromStreamAsync(fileStream);
 		}
+	}
 
-		return Buffer.Rewind();
+	public async Task<Stream> OpenReadAsync()
+	{
+		await EnsureLoadedAsync();
+
+		return Buffer.ToStream();
 	}
 
 	public async Task<byte[]> ComputeHashAsync()
 	{
 		if (Hash == null)
 		{
-			using var hashAlgorithm = MD5.Create();
-			Hash = hashAlgorithm.ComputeHash(await OpenReadAsync());
+			await EnsureLoadedAsync();
+
+			Hash = MD5.HashData(Buffer);
 			Metadata.Add(BlobMetadataKeys.OriginalMd5, Convert.ToBase64String(Hash));
 		}
 
@@ -47,19 +52,10 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 
 	public void Dispose()
 	{
-		if (Buffer != null)
-		{
-			Buffer.Dispose();
-		}
 	}
 
 	public ValueTask DisposeAsync()
 	{
-		if (Buffer != null)
-		{
-			return Buffer.DisposeAsync();
-		}
-
-		return default;
+		return ValueTask.CompletedTask;
 	}
 }
