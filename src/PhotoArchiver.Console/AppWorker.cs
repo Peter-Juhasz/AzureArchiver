@@ -67,7 +67,7 @@ public class AppWorker : BackgroundService
 		try
 		{
 			// check for updates
-			if (UpdateOptions.Enabled && await UpdateService.CheckForUpdatesAsync())
+			if (UpdateOptions.Enabled && await UpdateService.CheckForUpdatesAsync(cancellationToken))
 			{
 				Logger.LogWarning($"A new version is available. You can download it from {UpdateOptions.Home}");
 

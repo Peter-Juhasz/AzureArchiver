@@ -2,5 +2,5 @@
 
 public interface IUpdateService
 {
-	Task<bool> CheckForUpdatesAsync();
+	Task<bool> CheckForUpdatesAsync(CancellationToken cancellationToken);
 }

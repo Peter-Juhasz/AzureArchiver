@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 
 using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 
@@ -22,12 +23,9 @@ public class GitHubUpdateService : IUpdateService
 
 	private static readonly JsonSerializerOptions jsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
-	public async Task<bool> CheckForUpdatesAsync()
+	public async Task<bool> CheckForUpdatesAsync(CancellationToken cancellationToken)
 	{
-		using var response = await Http.GetAsync(Options.Value.Feed);
-		response.EnsureSuccessStatusCode();
-		using var stream = await response.Content.ReadAsStreamAsync();
-		var releases = await JsonSerializer.DeserializeAsync<ReleaseDto[]>(stream, jsonSerializerOptions);
+		var releases = await Http.GetFromJsonAsync<ReleaseDto[]>(Options.Value.Feed, jsonSerializerOptions);
 		var latest = releases!.OrderByDescending(r => r.Name).First();
 
 		var currentVersion = Version.Parse(FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).ProductVersion!);
