@@ -21,6 +21,7 @@
 		<PackageReference Include="Microsoft.Extensions.Http" Version="*" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="*" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.*" />
+		<PackageReference Include="System.Memory.Data" Version="*" />
 		<PackageReference Include="System.Interactive.Async" Version="*" />
 		<PackageReference Include="System.Text.Json" Version="*" />
 	</ItemGroup>

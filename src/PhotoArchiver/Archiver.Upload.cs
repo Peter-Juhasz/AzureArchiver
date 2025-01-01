@@ -282,37 +282,44 @@ public partial class Archiver
 					if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled() && (result == UploadResult.Uploaded || ThumbnailOptions.Force))
 					{
 						await using var stream = await item.OpenReadAsync(cancellationToken);
-						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(stream, ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value, cancellationToken);
+						var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(stream, ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value, cancellationToken);
 
 						var thumbnailContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
-						var thumbnailBlob = thumbnailContainer.GetBlockBlobClient(blob.Name);
-						var headers = new BlobHttpHeaders
+						var thumbnailBlob = thumbnailContainer.GetBlobClient(blob.Name);
+						var options = new BlobUploadOptions()
 						{
-							ContentType = "image/jpeg"
+							HttpHeaders = new BlobHttpHeaders
+							{
+								ContentType = thumbnail.MediaType,
+							},
+							Metadata = item.Metadata
 						};
 
 						try
 						{
-							await thumbnailBlob.UploadAsync(thumbnail, headers, item.Metadata, cancellationToken: cancellationToken);
+							await thumbnailBlob.UploadAsync(thumbnail, options, cancellationToken: cancellationToken);
 							CostEstimator.AddWrite(thumbnail.Length);
 						}
 						catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
 						{
 							await thumbnailContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 							CostEstimator.AddListOrCreateContainer();
-							await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
+
+							await thumbnailBlob.UploadAsync(thumbnail, options, cancellationToken: cancellationToken);
 							CostEstimator.AddWrite(thumbnail.Length);
 						}
 						catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobAlreadyExists)
 						{
 							await thumbnailBlob.DeleteIfExistsAsync(cancellationToken: cancellationToken);
-							await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
+
+							await thumbnailBlob.UploadAsync(thumbnail, options, cancellationToken: cancellationToken);
 							CostEstimator.AddWrite(thumbnail.Length);
 						}
 						catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobArchived && ThumbnailOptions.Force)
 						{
 							await thumbnailBlob.DeleteIfExistsAsync(cancellationToken: cancellationToken);
-							await thumbnailBlob.UploadAsync(thumbnail.Rewind(), headers, item.Metadata, cancellationToken: cancellationToken);
+
+							await thumbnailBlob.UploadAsync(thumbnail, options, cancellationToken: cancellationToken);
 							CostEstimator.AddWrite(thumbnail.Length);
 						}
 					}

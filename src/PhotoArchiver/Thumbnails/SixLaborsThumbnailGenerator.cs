@@ -16,7 +16,7 @@ public class SixLaborsThumbnailGenerator : IThumbnailGenerator
 
 	public JpegEncoder Encoder { get; }
 
-	public Task<Stream> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight, CancellationToken cancellationToken)
+	public Task<BinaryData> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight, CancellationToken cancellationToken)
 	{
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxWidth);
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxHeight);
@@ -38,8 +38,10 @@ public class SixLaborsThumbnailGenerator : IThumbnailGenerator
 
 			img.Mutate(x => x.Resize(width, height));
 		}
-		var buffer = new MemoryStream();
+		using var buffer = new MemoryStream();
 		img.SaveAsJpeg(buffer, Encoder);
-		return Task.FromResult(buffer.Rewind());
+		buffer.Rewind();
+		var result = BinaryData.FromStream(buffer, "image/jpeg");
+		return Task.FromResult(result);
 	}
 }
