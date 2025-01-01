@@ -45,7 +45,7 @@ internal class FileLoggerProvider : ILoggerProvider
 		private static readonly IDisposable Scope = new NullScope();
 
 
-		public IDisposable BeginScope<TState>(TState state) => Scope;
+		public IDisposable? BeginScope<TState>(TState state) where TState : notnull => Scope;
 
 		public bool IsEnabled(LogLevel logLevel) => true;
 

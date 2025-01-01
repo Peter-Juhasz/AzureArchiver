@@ -157,7 +157,7 @@ public partial class Archiver
 
 				if (result != UploadResult.AlreadyExists)
 				{
-					// check for extistance
+					// check for existence
 					switch (await ExistsAndCompareAsync(blob, item, cancellationToken))
 					{
 						// upload, if not exists

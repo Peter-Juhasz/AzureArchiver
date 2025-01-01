@@ -25,8 +25,10 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 	{
 		if (Buffer == null)
 		{
-			using var fileStream = await Info.OpenReadAsync(cancellationToken);
+#pragma warning disable CS8774
+			await using var fileStream = await Info.OpenReadAsync(cancellationToken);
 			Buffer = await BinaryData.FromStreamAsync(fileStream, cancellationToken);
+#pragma warning restore CS8774
 		}
 	}
 
