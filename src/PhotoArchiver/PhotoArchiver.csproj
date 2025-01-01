@@ -20,7 +20,7 @@
 		<PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="*" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="*" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="*" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="2.*" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="3.*" />
 		<PackageReference Include="System.Interactive.Async" Version="*" />
 		<PackageReference Include="System.Text.Json" Version="*" />
 	</ItemGroup>

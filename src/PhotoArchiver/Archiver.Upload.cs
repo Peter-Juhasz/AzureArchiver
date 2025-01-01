@@ -275,7 +275,7 @@ public partial class Archiver
 					// thumbnail
 					if (item.Info.IsJpeg() && ThumbnailOptions.IsEnabled() && (result == UploadResult.Uploaded || ThumbnailOptions.Force))
 					{
-						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(cancellationToken), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value);
+						using var thumbnail = await ThumbnailGenerator.GetThumbnailAsync(await item.OpenReadAsync(cancellationToken), ThumbnailOptions.MaxWidth!.Value, ThumbnailOptions.MaxHeight!.Value, cancellationToken);
 
 						var thumbnailContainer = Client.GetBlobContainerClient(ThumbnailOptions.Container);
 						var thumbnailBlob = thumbnailContainer.GetBlockBlobClient(blob.Name);

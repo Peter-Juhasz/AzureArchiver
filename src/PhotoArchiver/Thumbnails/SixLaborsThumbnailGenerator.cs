@@ -16,17 +16,10 @@ public class SixLaborsThumbnailGenerator : IThumbnailGenerator
 
 	public JpegEncoder Encoder { get; }
 
-	public Task<Stream> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight)
+	public Task<Stream> GetThumbnailAsync(Stream image, int maxWidth, int maxHeight, CancellationToken cancellationToken)
 	{
-		if (maxWidth <= 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(maxWidth));
-		}
-
-		if (maxHeight <= 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(maxHeight));
-		}
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxWidth);
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxHeight);
 
 		using var img = Image.Load(image);
 		if (img.Width > maxWidth || img.Height > maxHeight)
