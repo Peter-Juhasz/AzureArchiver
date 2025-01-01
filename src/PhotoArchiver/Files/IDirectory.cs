@@ -6,9 +6,9 @@ public interface IDirectory
 
 	string Path { get; }
 
-	Task<IReadOnlyList<IFile>> GetFilesAsync();
+	Task<IReadOnlyList<IFile>> GetFilesAsync(CancellationToken cancellationToken);
 
-	Task<IFile> GetFileAsync(string name);
+	Task<IFile> GetFileAsync(string name, CancellationToken cancellationToken);
 
-	Task<IFile> CreateFileAsync(string name);
+	Task<IFile> CreateFileAsync(string name, CancellationToken cancellationToken);
 }

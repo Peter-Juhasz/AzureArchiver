@@ -69,7 +69,7 @@ public partial class Archiver
 				}
 
 				// download
-				var targetFile = await directory.CreateFileAsync(Path.GetFileName(blob.Name));
+				var targetFile = await directory.CreateFileAsync(Path.GetFileName(blob.Name), cancellationToken);
 				result = await DownloadCoreAsync(targetFile, blob, blobClient, Options.Verify, cancellationToken);
 			}
 			catch (RequestFailedException ex)

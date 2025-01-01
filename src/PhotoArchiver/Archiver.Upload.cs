@@ -30,7 +30,7 @@ public partial class Archiver
 	{
 		// set up filter
 		var matcher = new Matcher().AddInclude(Options.SearchPattern);
-		var files = await directory.GetFilesAsync();
+		var files = await directory.GetFilesAsync(cancellationToken);
 
 		var query = files.Where(f => matcher.Match(directory.Path, f.Path).HasMatches)
 			.OrderBy(f => f.Path)
