@@ -7,6 +7,7 @@ using System.CommandLine.Invocation;
 namespace PhotoArchiver.Console.Commands;
 
 using Download;
+using PhotoArchiver.Storage;
 
 public static partial class Extensions
 {
@@ -18,6 +19,10 @@ public static partial class Extensions
 		command.AddArgument(dateArgument);
 		var pathArgument = new Argument<string>("path", "The path of the destination folder.");
 		command.AddArgument(pathArgument);
+
+		var containerOption = new Option<string>("--container", "The container to download files from.");
+		containerOption.SetDefaultValue("photos");
+		command.AddOption(containerOption);
 
 		var verifyOption = new Option<bool>("--verify", "Verifies the upload after completion.");
 		verifyOption.SetDefaultValue(true);
@@ -33,6 +38,10 @@ public static partial class Extensions
 			// configure
 			hostBuilder.ConfigureServices((services) =>
 			{
+				services.Configure<StorageOptions>(options =>
+				{
+					options.Container = context.ParseResult.GetValueForOption(containerOption)!;
+				});
 				services.Configure<DownloadOptions>(options =>
 				{
 					options.Date = context.ParseResult.GetValueForArgument(dateArgument);

@@ -6,6 +6,8 @@ using System.CommandLine.Invocation;
 
 namespace PhotoArchiver.Console.Commands;
 
+using PhotoArchiver.Storage;
+using PhotoArchiver.Thumbnails;
 using Upload;
 
 public static partial class Extensions
@@ -14,11 +16,16 @@ public static partial class Extensions
 	{
 		var command = new Command("upload", "Uploads media from a folder.");
 
+		// upload options
 		var pathArgument = new Argument<string>("path", "The path to the folder to upload.");
 		command.AddArgument(pathArgument);
 		var searchPatternOption = new Option<string>("--search-pattern", "The search pattern to use when searching for files to upload.");
 		searchPatternOption.SetDefaultValue("**/*");
 		command.AddOption(searchPatternOption);
+
+		var containerOption = new Option<string>("--container", "The container to upload files to.");
+		containerOption.SetDefaultValue("photos");
+		command.AddOption(containerOption);
 
 		var skipOption = new Option<int>("--skip", "The number of files to skip.");
 		skipOption.SetDefaultValue(0);
@@ -49,6 +56,27 @@ public static partial class Extensions
 		var parallelBlockCountOption = new Option<int?>("--parallel-block-count", "The number of parallel blocks to upload.");
 		command.AddOption(parallelBlockCountOption);
 
+		// thumbnail options
+		var maxThumbnailWidth = new Option<int>("--max-thumbnail-width", "Maximum width of thumbnails generated.");
+		maxThumbnailWidth.SetDefaultValue(256);
+		command.AddOption(maxThumbnailWidth);
+
+		var maxThumbnailHeight = new Option<int>("--max-thumbnail-height", "Maximum height of thumbnails generated.");
+		maxThumbnailHeight.SetDefaultValue(256);
+		command.AddOption(maxThumbnailHeight);
+
+		var thumbnailQuality = new Option<double>("--thumbnail-quality", "Quality of thumbnails generated.");
+		thumbnailQuality.SetDefaultValue(0.50);
+		command.AddOption(thumbnailQuality);
+
+		var forceThumbnails = new Option<bool>("--force-thumbnails", "Forces thumbnail generation even if already uploaded.");
+		forceThumbnails.SetDefaultValue(false);
+		command.AddOption(forceThumbnails);
+
+		var thumbnailContainer = new Option<string>("--thumbnail-container", "The container to store thumbnails in.");
+		thumbnailContainer.SetDefaultValue("photos-thumbnails");
+		command.AddOption(thumbnailContainer);
+
 		command.SetHandler(async (InvocationContext context) =>
 		{
 			var cancellationToken = context.GetCancellationToken();
@@ -56,6 +84,10 @@ public static partial class Extensions
 			// configure
 			hostBuilder.ConfigureServices((services) =>
 			{
+				services.Configure<StorageOptions>(options =>
+				{
+					options.Container = context.ParseResult.GetValueForOption(containerOption)!;
+				});
 				services.Configure<UploadOptions>(options =>
 				{
 					options.Path = context.ParseResult.GetValueForArgument(pathArgument);
@@ -68,6 +100,14 @@ public static partial class Extensions
 					options.Delete = context.ParseResult.GetValueForOption(deleteOption);
 					options.AccessTier = context.ParseResult.GetValueForOption(accessTierOption);
 					options.ParallelBlockCount = context.ParseResult.GetValueForOption(parallelBlockCountOption);
+				});
+				services.Configure<ThumbnailOptions>(options =>
+				{
+					options.MaxWidth = context.ParseResult.GetValueForOption(maxThumbnailWidth);
+					options.MaxHeight = context.ParseResult.GetValueForOption(maxThumbnailHeight);
+					options.Quality = context.ParseResult.GetValueForOption(thumbnailQuality);
+					options.Force = context.ParseResult.GetValueForOption(forceThumbnails);
+					options.Container = context.ParseResult.GetValueForOption(thumbnailContainer)!;
 				});
 			});
 			using var host = hostBuilder.Build();
