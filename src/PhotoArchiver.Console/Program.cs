@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.CommandLine;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -19,7 +20,6 @@ using PhotoArchiver.Thumbnails;
 using PhotoArchiver.Update;
 using PhotoArchiver.Upload;
 using PhotoArchiver.Console;
-using System.CommandLine;
 using PhotoArchiver.Console.Commands;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
@@ -93,5 +93,6 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
 
 var rootCommand = new RootCommand();
 rootCommand.AddUploadCommand(hostBuilder);
+rootCommand.AddDownloadCommand(hostBuilder);
 
 await rootCommand.InvokeAsync(args);

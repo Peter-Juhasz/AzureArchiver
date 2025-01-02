@@ -1,11 +1,12 @@
 ﻿using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PhotoArchiver.Upload;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
 namespace PhotoArchiver.Console.Commands;
+
+using Upload;
 
 public static partial class Extensions
 {
