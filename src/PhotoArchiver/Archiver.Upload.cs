@@ -69,10 +69,11 @@ public partial class Archiver
 		var count = files.Count;
 		var processedBytes = 0L;
 		var allBytes = 0L;
-		foreach (var f in files)
+		await Parallel.ForEachAsync(files, cancellationToken, async (file, token) =>
 		{
-			allBytes += await f.GetSizeAsync(cancellationToken);
-		}
+			var fileSize = await file.GetSizeAsync(cancellationToken);
+			Interlocked.Add(ref allBytes, fileSize);
+		});
 
 		// enumerate files in directory
 		progressIndicator.Initialize(allBytes, files.Count);
