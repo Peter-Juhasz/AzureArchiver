@@ -18,27 +18,28 @@ For basic usage, you have to specify only the path to the folder to upload and t
 
 Run on Windows:
 ```ps
-.\PhotoArchiver.exe --Upload:Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
+.\PhotoArchiver.exe upload "D:\OneDrive\Camera Roll"
 ```
 
 Run on Linux/Unix:
 ```sh
-dotnet PhotoArchiver.dll --Upload:Path="D:\OneDrive\Camera Roll" --Storage:ConnectionString="SECRET"
+dotnet PhotoArchiver.dll upload "D:\OneDrive\Camera Roll"
 ```
 
 You can also save your credentials to a configuration file. See below.
 
 ### Download blobs
-Start download of blobs that are immediately accessible. Archived blobs will be rehydrated.
+Start download of blobs that are immediately accessible.
 
 ```ps
-.\PhotoArchiver.exe --Download:Date "2019-08-14" --Download:Path "D:\OneDrive\Camera Roll" --Storage:ConnectionString "SECRET"
+.\PhotoArchiver.exe download "2019-08-14" "D:\OneDrive\Camera Roll"
 ```
 
-You may see that your archived blobs are not accessible right now and they are beign rehydrated. In that case, check back after 12 hours and continue:
+You may see that your archived blobs are not accessible right now and they are being rehydrated. In that case, check back after 12 hours and continue:
 
 ```ps
-.\PhotoArchiver.exe --Download:Continue true
+.\PhotoArchiver.exe rehydrate "2019-08-14"
+.\PhotoArchiver.exe download "2019-08-14" "D:\OneDrive\Camera Roll"
 ```
 
 ## Configuration
