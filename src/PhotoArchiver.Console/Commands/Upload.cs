@@ -73,7 +73,9 @@ public static partial class Extensions
 			using var host = hostBuilder.Build();
 
 			// run
-			await host.StartAsync(cancellationToken);
+			var worker = host.Services.GetRequiredService<UploadWorker>();
+			await worker.StartAsync(cancellationToken);
+			await worker.ExecuteTask!;
 		});
 
 		root.AddCommand(command);

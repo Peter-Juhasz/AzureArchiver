@@ -86,8 +86,9 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
 			services.AddSingleton<IProgressIndicator, NullProgressIndicator>();
 		}
 
-		// worker
-		services.AddHostedService<AppWorker>();
+		// workers
+		services.AddScoped<UploadWorker>();
+		services.AddScoped<DownloadWorker>();
 	})
 	.UseConsoleLifetime();
 
