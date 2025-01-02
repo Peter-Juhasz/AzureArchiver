@@ -19,10 +19,12 @@ using PhotoArchiver.Thumbnails;
 using PhotoArchiver.Update;
 using PhotoArchiver.Upload;
 using PhotoArchiver.Console;
+using System.CommandLine;
+using PhotoArchiver.Console.Commands;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
-using var host = Host.CreateDefaultBuilder(args)
+var hostBuilder = Host.CreateDefaultBuilder(args)
 	.ConfigureLogging(builder => builder
 		.AddProvider(new FileLoggerProvider())
 	)
@@ -87,7 +89,9 @@ using var host = Host.CreateDefaultBuilder(args)
 		// worker
 		services.AddHostedService<AppWorker>();
 	})
-	.UseConsoleLifetime()
-	.Build();
+	.UseConsoleLifetime();
 
-await host.RunAsync();
+var rootCommand = new RootCommand();
+rootCommand.AddUploadCommand(hostBuilder);
+
+await rootCommand.InvokeAsync(args);

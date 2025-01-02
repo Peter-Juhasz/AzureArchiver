@@ -5,12 +5,13 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>preview</LangVersion>
 		<Nullable>enable</Nullable>
-		<Version>2.0.0</Version>
+		<Version>3.0.0</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="*" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
+		<PackageReference Include="System.CommandLine" Version="*-*" />
 	</ItemGroup>
 
 	<ItemGroup>

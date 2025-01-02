@@ -21,7 +21,7 @@ public class UploadOptions
 
 	public ConflictResolution ConflictResolution { get; set; } = ConflictResolution.Skip;
 
-	public bool Deduplicate { get; set; } = false;
+	public bool Deduplicate { get; set; } = true;
 
 	public int? ParallelBlockCount { get; set; }
 
