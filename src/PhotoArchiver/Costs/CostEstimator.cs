@@ -2,21 +2,17 @@
 
 namespace PhotoArchiver.Costs;
 
-public class CostEstimator
+public class CostEstimator(IOptions<CostOptions> costOptions)
 {
-	public CostEstimator(IOptions<CostOptions> costOptions)
-	{
-		CostOptions = costOptions.Value;
-	}
-
-	protected CostOptions CostOptions { get; }
+	protected CostOptions CostOptions { get; } = costOptions.Value;
 
 	private const long GB = 1024 * 1024 * 1024;
 
 
-	public int Reads { get; private set; }
+	private int _reads = 0;
+	public int Reads => _reads;
 
-	public void AddRead() => Reads++;
+	public void AddRead() => Interlocked.Increment(ref _reads);
 
 	public void AddRead(long bytes)
 	{
@@ -25,9 +21,10 @@ public class CostEstimator
 	}
 
 
-	public int Writes { get; private set; }
+	private int _writes = 0;
+	public int Writes => _writes;
 
-	public void AddWrite() => Writes++;
+	public void AddWrite() => Interlocked.Increment(ref _writes);
 
 	public void AddWrite(long bytes)
 	{
@@ -35,39 +32,46 @@ public class CostEstimator
 		AddBytesWritten(bytes);
 	}
 
-	public int Others { get; private set; }
+	private int _others = 0;
+	public int Others => _others;
 
-	public void AddOther() => Others++;
-
-
-	public int ListOrCreateContainers { get; private set; }
-
-	public void AddListOrCreateContainer() => ListOrCreateContainers++;
+	public void AddOther() => Interlocked.Increment(ref _others);
 
 
-	public long BytesWritten { get; private set; }
+	private int _listOrCreateContainers = 0;
+	public int ListOrCreateContainers => _listOrCreateContainers;
 
-	public void AddBytesWritten(long bytes) => BytesWritten += bytes;
-
-
-	public int KeyVaultOperations { get; private set; }
-
-	public void AddKeyVaultOperation() => KeyVaultOperations++;
+	public void AddListOrCreateContainer() => Interlocked.Increment(ref _listOrCreateContainers);
 
 
-	public int DescribeTransactions { get; private set; }
+	private long _bytesWritten = 0;
+	public long BytesWritten => _bytesWritten;
 
-	public void AddDescribe() => DescribeTransactions++;
-
-
-	public int FaceTransactions { get; private set; }
-
-	public void AddFace() => FaceTransactions++;
+	public void AddBytesWritten(long bytes) => Interlocked.Add(ref _bytesWritten, bytes);
 
 
-	public long BytesRead { get; private set; }
+	private int _keyVaultOperations = 0;
+	public int KeyVaultOperations => _keyVaultOperations;
 
-	public void AddBytesRead(long bytes) => BytesRead += bytes;
+	public void AddKeyVaultOperation() => Interlocked.Increment(ref _keyVaultOperations);
+
+
+	private int _describeTransactions = 0;
+	public int DescribeTransactions => _describeTransactions;
+
+	public void AddDescribe() => Interlocked.Increment(ref _describeTransactions);
+
+
+	private int _faceTransactions = 0;
+	public int FaceTransactions => _faceTransactions;
+
+	public void AddFace() => Interlocked.Increment(ref _faceTransactions);
+
+
+	private long _bytesRead = 0;
+	public long BytesRead => _bytesRead;
+
+	public void AddBytesRead(long bytes) => Interlocked.Add(ref _bytesRead, bytes);
 
 
 	public IEnumerable<(string item, long amount)> SummarizeUsage()
