@@ -1,14 +1,13 @@
 ﻿using Azure.Storage.Blobs;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.CommandLine;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
 using PhotoArchiver;
 using PhotoArchiver.ComputerVision;
+using PhotoArchiver.Console;
+using PhotoArchiver.Console.Commands;
 using PhotoArchiver.Costs;
 using PhotoArchiver.Deduplication;
 using PhotoArchiver.Download;
@@ -19,12 +18,20 @@ using PhotoArchiver.Storage;
 using PhotoArchiver.Thumbnails;
 using PhotoArchiver.Update;
 using PhotoArchiver.Upload;
-using PhotoArchiver.Console;
-using PhotoArchiver.Console.Commands;
+using System;
+using System.CommandLine;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 [assembly: InternalsVisibleTo("PhotoArchiver.Tests")]
 
-var hostBuilder = Host.CreateDefaultBuilder(args)
+var builder = Host.CreateDefaultBuilder(args);
+builder = builder
+	.ConfigureAppConfiguration(builder =>
+		builder.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+	)
 	.ConfigureLogging(builder => builder
 		.AddProvider(new FileLoggerProvider())
 	)
@@ -89,11 +96,53 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
 		// workers
 		services.AddScoped<UploadWorker>();
 		services.AddScoped<DownloadWorker>();
+
+		// commands
+		var rootCommand = new RootCommand();
+		rootCommand.AddUploadCommand();
+		rootCommand.AddDownloadCommand();
+		services.AddSingleton(rootCommand);
+		services.AddSingleton<IHost, CliHost>();
 	})
 	.UseConsoleLifetime();
 
-var rootCommand = new RootCommand();
-rootCommand.AddUploadCommand(hostBuilder);
-rootCommand.AddDownloadCommand(hostBuilder);
+using var host = builder.Build();
+await host.RunAsync();
 
-await rootCommand.InvokeAsync(args);
+
+class CliHost(IServiceProvider serviceProvider, RootCommand rootCommand, IHostApplicationLifetime lifetime) : IHost
+{
+	internal static IHost Instance = null!;
+
+	public IServiceProvider Services => serviceProvider;
+
+	public async Task StartAsync(CancellationToken cancellationToken = default)
+	{
+		Instance = this;
+		Environment.ExitCode = await rootCommand.Parse(Environment.CommandLine).InvokeAsync(cancellationToken: cancellationToken);
+		lifetime.StopApplication();
+	}
+
+	public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+	public void Dispose() { }
+}
+
+internal static partial class Shim
+{
+	public static IHost GetHost(this ParseResult _) => CliHost.Instance;
+
+	public static void Configure<T>(this IServiceProvider services, Action<T> configure) where T : class
+	{
+		var options = services.GetRequiredService<IOptions<T>>();
+		configure(options.Value);
+	}
+
+	public static void Bind<T>(this ParseResult parseResult, Option<T> option, Action<T> bind)
+	{
+		if (parseResult.GetResult(option) is { Implicit: false } result)
+		{
+			bind(result.GetValueOrDefault<T>());
+		}
+	}
+}

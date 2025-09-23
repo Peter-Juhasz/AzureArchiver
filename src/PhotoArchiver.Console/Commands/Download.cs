@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace PhotoArchiver.Console.Commands;
 
@@ -11,46 +9,42 @@ using PhotoArchiver.Storage;
 
 public static partial class Extensions
 {
-	public static void AddDownloadCommand(this RootCommand root, IHostBuilder hostBuilder)
+	public static void AddDownloadCommand(this RootCommand root)
 	{
 		var command = new Command("download", "Downloads media from cloud storage to a folder.");
 
-		var dateArgument = new Argument<DateTime>("date", "The date to download media for.");
-		command.AddArgument(dateArgument);
-		var pathArgument = new Argument<string>("path", "The path of the destination folder.");
-		command.AddArgument(pathArgument);
+		var dateArgument = new Argument<DateTime>("date") { Description = "The date to download media for." };
+		command.Add(dateArgument);
+		var pathArgument = new Argument<string>("path") { Description = "The path of the destination folder." };
+		command.Add(pathArgument);
 
-		var containerOption = new Option<string>("--container", "The container to download files from.");
-		containerOption.SetDefaultValue("photos");
-		command.AddOption(containerOption);
+		var containerOption = new Option<string>("--container") { Description = "The container to download files from." };
+		containerOption.DefaultValueFactory = _ => "photos";
+		command.Add(containerOption);
 
-		var verifyOption = new Option<bool>("--verify", "Verifies the upload after completion.");
-		verifyOption.SetDefaultValue(true);
-		command.AddOption(verifyOption);
-		var archiveOption = new Option<bool>("--archive", "Archives the file after download.");
-		archiveOption.SetDefaultValue(false);
-		command.AddOption(archiveOption);
+		var verifyOption = new Option<bool>("--verify") { Description = "Verifies the upload after completion." };
+		verifyOption.DefaultValueFactory = _ => true;
+		command.Add(verifyOption);
+		var archiveOption = new Option<bool>("--archive") { Description = "Archives the file after download." };
+		archiveOption.DefaultValueFactory = _ => false;
+		command.Add(archiveOption);
 
-		command.SetHandler(async (InvocationContext context) =>
+		command.SetAction(async (result, cancellationToken) =>
 		{
-			var cancellationToken = context.GetCancellationToken();
-
 			// configure
-			hostBuilder.ConfigureServices((services) =>
+			var host = result.GetHost();
+			host.Services.Configure<StorageOptions>(options =>
 			{
-				services.Configure<StorageOptions>(options =>
-				{
-					options.Container = context.ParseResult.GetValueForOption(containerOption)!;
-				});
-				services.Configure<DownloadOptions>(options =>
-				{
-					options.Date = context.ParseResult.GetValueForArgument(dateArgument);
-					options.Path = context.ParseResult.GetValueForArgument(pathArgument);
-					options.Verify = context.ParseResult.GetValueForOption(verifyOption);
-					options.Archive = context.ParseResult.GetValueForOption(archiveOption);
-				});
+				result.Bind(containerOption, s => options.Container = s);
 			});
-			using var host = hostBuilder.Build();
+			host.Services.Configure<DownloadOptions>(options =>
+			{
+				options.Date = result.GetValue(dateArgument);
+				options.Path = result.GetValue(pathArgument);
+
+				result.Bind(verifyOption, s => options.Verify = s);
+				result.Bind(archiveOption, s => options.Archive = s);
+			});
 
 			// run
 			var worker = host.Services.GetRequiredService<DownloadWorker>();
@@ -58,6 +52,6 @@ public static partial class Extensions
 			await worker.ExecuteTask!;
 		});
 
-		root.AddCommand(command);
+		root.Add(command);
 	}
 }

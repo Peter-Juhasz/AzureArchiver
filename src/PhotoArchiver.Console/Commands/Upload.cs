@@ -1,8 +1,6 @@
 ﻿using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace PhotoArchiver.Console.Commands;
 
@@ -12,105 +10,101 @@ using Upload;
 
 public static partial class Extensions
 {
-	public static void AddUploadCommand(this RootCommand root, IHostBuilder hostBuilder)
+	public static void AddUploadCommand(this RootCommand root)
 	{
 		var command = new Command("upload", "Uploads media from a folder.");
 
 		// upload options
-		var pathArgument = new Argument<string>("path", "The path to the folder to upload.");
-		command.AddArgument(pathArgument);
-		var searchPatternOption = new Option<string>("--search-pattern", "The search pattern to use when searching for files to upload.");
-		searchPatternOption.SetDefaultValue("**/*");
-		command.AddOption(searchPatternOption);
+		var pathArgument = new Argument<string>("path") { Description = "The path to the folder to upload." };
+		command.Add(pathArgument);
+		var searchPatternOption = new Option<string>("--search-pattern") { Description = "The search pattern to use when searching for files to upload." };
+		searchPatternOption.DefaultValueFactory = _ => "**/*";
+		command.Add(searchPatternOption);
 
-		var containerOption = new Option<string>("--container", "The container to upload files to.");
-		containerOption.SetDefaultValue("photos");
-		command.AddOption(containerOption);
+		var containerOption = new Option<string>("--container") { Description = "The container to upload files to." };
+		containerOption.DefaultValueFactory = _ => "photos";
+		command.Add(containerOption);
 
-		var skipOption = new Option<int>("--skip", "The number of files to skip.");
-		skipOption.SetDefaultValue(0);
-		command.AddOption(skipOption);
+		var skipOption = new Option<int>("--skip") { Description = "The number of files to skip." };
+		skipOption.DefaultValueFactory = _ => 0;
+		command.Add(skipOption);
 
-		var takeOption = new Option<int?>("--take", "The number of files to take.");
-		command.AddOption(takeOption);
+		var takeOption = new Option<int?>("--take") { Description = "The number of files to take." };
+		command.Add(takeOption);
 
-		var deduplicateOption = new Option<bool>("--deduplicate", "Deduplicates files before uploading.");
-		deduplicateOption.SetDefaultValue(true);
-		command.AddOption(deduplicateOption);
+		var deduplicateOption = new Option<bool>("--deduplicate") { Description = "Deduplicates files before uploading." };
+		deduplicateOption.DefaultValueFactory = _ => true;
+		command.Add(deduplicateOption);
 
-		var conflictResolutionOption = new Option<ConflictResolution>("--conflict-resolution", "The conflict resolution strategy to use.");
-		conflictResolutionOption.SetDefaultValue(ConflictResolution.Skip);
-		command.AddOption(conflictResolutionOption);
+		var conflictResolutionOption = new Option<ConflictResolution>("--conflict-resolution") { Description = "The conflict resolution strategy to use." };
+		conflictResolutionOption.DefaultValueFactory = _ => ConflictResolution.Skip;
+		command.Add(conflictResolutionOption);
 
-		var verifyOption = new Option<bool>("--verify", "Verifies the upload after completion.");
-		verifyOption.SetDefaultValue(true);
-		command.AddOption(verifyOption);
-		var deleteOption = new Option<bool>("--delete", "Deletes the file after upload.");
-		deleteOption.SetDefaultValue(false);
-		command.AddOption(deleteOption);
+		var verifyOption = new Option<bool>("--verify") { Description = "Verifies the upload after completion." };
+		verifyOption.DefaultValueFactory = _ => true;
+		command.Add(verifyOption);
+		var deleteOption = new Option<bool>("--delete") { Description = "Deletes the file after upload." };
+		deleteOption.DefaultValueFactory = _ => false;
+		command.Add(deleteOption);
 
-		var accessTierOption = new Option<AccessTier>("--access-tier", "The access tier to use for the uploaded blobs.");
-		accessTierOption.SetDefaultValue(AccessTier.Cool);
-		command.AddOption(accessTierOption);
+		var accessTierOption = new Option<AccessTier>("--access-tier") { Description = "The access tier to use for the uploaded blobs." };
+		accessTierOption.DefaultValueFactory = _ => AccessTier.Cool;
+		command.Add(accessTierOption);
 
-		var parallelBlockCountOption = new Option<int?>("--parallel-block-count", "The number of parallel blocks to upload.");
-		command.AddOption(parallelBlockCountOption);
+		var parallelBlockCountOption = new Option<int?>("--parallel-block-count") { Description = "The number of parallel blocks to upload." };
+		command.Add(parallelBlockCountOption);
 
 		// thumbnail options
-		var maxThumbnailWidth = new Option<int>("--max-thumbnail-width", "Maximum width of thumbnails generated.");
-		maxThumbnailWidth.SetDefaultValue(256);
-		command.AddOption(maxThumbnailWidth);
+		var maxThumbnailWidth = new Option<int>("--max-thumbnail-width") { Description = "Maximum width of thumbnails generated." };
+		maxThumbnailWidth.DefaultValueFactory = _ => 256;
+		command.Add(maxThumbnailWidth);
 
-		var maxThumbnailHeight = new Option<int>("--max-thumbnail-height", "Maximum height of thumbnails generated.");
-		maxThumbnailHeight.SetDefaultValue(256);
-		command.AddOption(maxThumbnailHeight);
+		var maxThumbnailHeight = new Option<int>("--max-thumbnail-height") { Description = "Maximum height of thumbnails generated." };
+		maxThumbnailHeight.DefaultValueFactory = _ => 256;
+		command.Add(maxThumbnailHeight);
 
-		var thumbnailQuality = new Option<double>("--thumbnail-quality", "Quality of thumbnails generated.");
-		thumbnailQuality.SetDefaultValue(0.50);
-		command.AddOption(thumbnailQuality);
+		var thumbnailQuality = new Option<double>("--thumbnail-quality") { Description = "Quality of thumbnails generated." };
+		thumbnailQuality.DefaultValueFactory = _ => 0.50;
+		command.Add(thumbnailQuality);
 
-		var forceThumbnails = new Option<bool>("--force-thumbnails", "Forces thumbnail generation even if already uploaded.");
-		forceThumbnails.SetDefaultValue(false);
-		command.AddOption(forceThumbnails);
+		var forceThumbnails = new Option<bool>("--force-thumbnails") { Description = "Forces thumbnail generation even if already uploaded." };
+		forceThumbnails.DefaultValueFactory = _ => false;
+		command.Add(forceThumbnails);
 
-		var thumbnailContainer = new Option<string>("--thumbnail-container", "The container to store thumbnails in.");
-		thumbnailContainer.SetDefaultValue("photos-thumbnails");
-		command.AddOption(thumbnailContainer);
+		var thumbnailContainer = new Option<string>("--thumbnail-container") { Description = "The container to store thumbnails in." };
+		thumbnailContainer.DefaultValueFactory = _ => "photos-thumbnails";
+		command.Add(thumbnailContainer);
 
-		command.SetHandler(async (InvocationContext context) =>
+		command.SetAction(async (result, cancellationToken) =>
 		{
-			var cancellationToken = context.GetCancellationToken();
-
 			// configure
-			hostBuilder.ConfigureServices((services) =>
+			var host = result.GetHost();
+			host.Services.Configure<StorageOptions>(options =>
 			{
-				services.Configure<StorageOptions>(options =>
-				{
-					options.Container = context.ParseResult.GetValueForOption(containerOption)!;
-				});
-				services.Configure<UploadOptions>(options =>
-				{
-					options.Path = context.ParseResult.GetValueForArgument(pathArgument);
-					options.SearchPattern = context.ParseResult.GetValueForOption(searchPatternOption)!;
-					options.Skip = context.ParseResult.GetValueForOption(skipOption);
-					options.Take = context.ParseResult.GetValueForOption(takeOption);
-					options.Deduplicate = context.ParseResult.GetValueForOption(deduplicateOption);
-					options.ConflictResolution = context.ParseResult.GetValueForOption(conflictResolutionOption);
-					options.Verify = context.ParseResult.GetValueForOption(verifyOption);
-					options.Delete = context.ParseResult.GetValueForOption(deleteOption);
-					options.AccessTier = context.ParseResult.GetValueForOption(accessTierOption);
-					options.ParallelBlockCount = context.ParseResult.GetValueForOption(parallelBlockCountOption);
-				});
-				services.Configure<ThumbnailOptions>(options =>
-				{
-					options.MaxWidth = context.ParseResult.GetValueForOption(maxThumbnailWidth);
-					options.MaxHeight = context.ParseResult.GetValueForOption(maxThumbnailHeight);
-					options.Quality = context.ParseResult.GetValueForOption(thumbnailQuality);
-					options.Force = context.ParseResult.GetValueForOption(forceThumbnails);
-					options.Container = context.ParseResult.GetValueForOption(thumbnailContainer)!;
-				});
+				result.Bind(containerOption, s => options.Container = s);
 			});
-			using var host = hostBuilder.Build();
+			host.Services.Configure<UploadOptions>(options =>
+			{
+				options.Path = result.GetValue(pathArgument);
+
+				result.Bind(searchPatternOption, s => options.SearchPattern = s);
+				result.Bind(skipOption, i => options.Skip = i);
+				result.Bind(takeOption, i => options.Take = i);
+				result.Bind(deduplicateOption, b => options.Deduplicate = b);
+				result.Bind(conflictResolutionOption, cr => options.ConflictResolution = cr);
+				result.Bind(verifyOption, b => options.Verify = b);
+				result.Bind(deleteOption, b => options.Delete = b);
+				result.Bind(accessTierOption, at => options.AccessTier = at);
+				result.Bind(parallelBlockCountOption, i => options.ParallelBlockCount = i);
+			});
+			host.Services.Configure<ThumbnailOptions>(options =>
+			{
+				result.Bind(maxThumbnailWidth, i => options.MaxWidth = i);
+				result.Bind(maxThumbnailHeight, i => options.MaxHeight = i);
+				result.Bind(thumbnailQuality, d => options.Quality = d);
+				result.Bind(forceThumbnails, b => options.Force = b);
+				result.Bind(thumbnailContainer, s => options.Container = s);
+			});
 
 			// run
 			var worker = host.Services.GetRequiredService<UploadWorker>();
@@ -118,6 +112,6 @@ public static partial class Extensions
 			await worker.ExecuteTask!;
 		});
 
-		root.AddCommand(command);
+		root.Add(command);
 	}
 }
