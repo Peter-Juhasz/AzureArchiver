@@ -54,7 +54,8 @@ jobs:
       run: dotnet publish --configuration Release
       
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dotnet
         path: src/*.Console/bin/Release/*/publish/
+        if-no-files-found: error
