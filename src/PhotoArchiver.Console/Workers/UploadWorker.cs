@@ -18,14 +18,12 @@ using Update;
 using Upload;
 
 public class UploadWorker(
-	IUpdateService updateService,
 	Archiver archiver,
 	BlobServiceClient client,
 	CostEstimator costEstimator,
 	IProgressIndicator progressIndicator,
 	IOptions<UploadOptions> options,
 	IOptions<CostOptions> costOptions,
-	IOptions<UpdateOptions> updateOptions,
 	IOptions<StorageOptions> storageOptions,
 	ILogger<UploadWorker> logger,
 	IHostApplicationLifetime lifetime
@@ -33,24 +31,12 @@ public class UploadWorker(
 {
 	private UploadOptions UploadOptions { get; } = options.Value;
 	private CostOptions CostOptions { get; } = costOptions.Value;
-	private UpdateOptions UpdateOptions { get; } = updateOptions.Value;
 	private StorageOptions StorageOptions { get; } = storageOptions.Value;
 
 	protected override async Task ExecuteAsync(CancellationToken cancellationToken)
 	{
 		try
 		{
-			// check for updates
-			if (UpdateOptions.Enabled && await updateService.CheckForUpdatesAsync(cancellationToken))
-			{
-				logger.LogWarning($"A new version is available. You can download it from {UpdateOptions.Home}");
-
-				if (UpdateOptions.Stop)
-				{
-					return;
-				}
-			}
-
 			// create container if not exists
 			logger.LogTrace("Ensure container exists...");
 			await client.GetBlobContainerClient(StorageOptions.Container).CreateIfNotExistsAsync(cancellationToken: cancellationToken);

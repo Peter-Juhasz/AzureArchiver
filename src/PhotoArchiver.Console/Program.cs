@@ -107,6 +107,25 @@ builder = builder
 	.UseConsoleLifetime();
 
 using var host = builder.Build();
+
+// check for updates
+var updateOptions = host.Services.GetRequiredService<IOptions<UpdateOptions>>().Value;
+if (updateOptions.Enabled)
+{
+	var logger = host.Services.GetRequiredService<ILogger<Program>>();
+	var updateService = host.Services.GetRequiredService<IUpdateService>();
+
+	if (await updateService.CheckForUpdatesAsync(CancellationToken.None))
+	{
+		logger.LogWarning($"A new version is available. You can download it from {updateOptions.Home}");
+
+		if (updateOptions.Stop)
+		{
+			return;
+		}
+	}
+}
+
 await host.RunAsync();
 
 

@@ -16,36 +16,22 @@ using Progress;
 using Update;
 
 public class DownloadWorker(
-	IUpdateService updateService,
 	Archiver archiver,
 	CostEstimator costEstimator,
 	IProgressIndicator progressIndicator,
 	IOptions<CostOptions> costOptions,
-	IOptions<UpdateOptions> updateOptions,
 	IOptions<DownloadOptions> downloadOptions,
 	ILogger<DownloadWorker> logger,
 	IHostApplicationLifetime lifetime
 ) : BackgroundService
 {
 	private CostOptions CostOptions { get; } = costOptions.Value;
-	private UpdateOptions UpdateOptions { get; } = updateOptions.Value;
 	private DownloadOptions DownloadOptions { get; } = downloadOptions.Value;
 
 	protected override async Task ExecuteAsync(CancellationToken cancellationToken)
 	{
 		try
 		{
-			// check for updates
-			if (UpdateOptions.Enabled && await updateService.CheckForUpdatesAsync(cancellationToken))
-			{
-				logger.LogWarning($"A new version is available. You can download it from {UpdateOptions.Home}");
-
-				if (UpdateOptions.Stop)
-				{
-					return;
-				}
-			}
-
 			var watch = Stopwatch.StartNew();
 
 			// download
