@@ -14,7 +14,6 @@ using Costs;
 using Files;
 using Progress;
 using Storage;
-using Update;
 using Upload;
 
 public class UploadWorker(

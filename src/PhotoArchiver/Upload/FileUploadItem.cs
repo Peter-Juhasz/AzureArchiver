@@ -5,14 +5,9 @@ namespace PhotoArchiver.Upload;
 
 using Files;
 
-public sealed class FileUploadItem : IDisposable, IAsyncDisposable
+public sealed class FileUploadItem(IFile info) : IDisposable, IAsyncDisposable
 {
-	public FileUploadItem(IFile info)
-	{
-		Info = info;
-	}
-
-	public IFile Info { get; }
+	public IFile Info { get; } = info;
 
 	public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
@@ -39,15 +34,22 @@ public sealed class FileUploadItem : IDisposable, IAsyncDisposable
 		return Buffer.ToStream();
 	}
 
-	public async Task<ReadOnlyMemory<byte>> ComputeHashAsync(CancellationToken cancellationToken)
+	public ValueTask<ReadOnlyMemory<byte>> ComputeHashAsync(CancellationToken cancellationToken)
 	{
-		if (Hash == null)
+		if (Hash != null)
 		{
-			await EnsureLoadedAsync(cancellationToken);
-
-			Hash = MD5.HashData(Buffer);
-			Metadata.Add(BlobMetadataKeys.OriginalMd5, Convert.ToBase64String(Hash));
+			return new(Hash);
 		}
+
+		return ComputeHashCoreAsync(cancellationToken);
+	}
+
+	private async ValueTask<ReadOnlyMemory<byte>> ComputeHashCoreAsync(CancellationToken cancellationToken)
+	{
+		await EnsureLoadedAsync(cancellationToken);
+
+		Hash = MD5.HashData(Buffer);
+		Metadata.Add(BlobMetadataKeys.OriginalMd5, Convert.ToBase64String(Hash));
 
 		return Hash;
 	}

@@ -6,7 +6,7 @@ public interface IFile
 
 	string Path { get; }
 
-	Task<long> GetSizeAsync(CancellationToken cancellationToken);
+	ValueTask<long> GetSizeAsync(CancellationToken cancellationToken);
 
 	Task<Stream> OpenReadAsync(CancellationToken cancellationToken);
 

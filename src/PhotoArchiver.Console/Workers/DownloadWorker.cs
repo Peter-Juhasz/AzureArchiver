@@ -13,7 +13,6 @@ using Costs;
 using Download;
 using Files;
 using Progress;
-using Update;
 
 public class DownloadWorker(
 	Archiver archiver,

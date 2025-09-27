@@ -8,7 +8,7 @@ namespace PhotoArchiver.Deduplication;
 
 public class DeduplicationService(ILogger<DeduplicationService> logger) : IDeduplicationService
 {
-	protected Dictionary<string, HashSet<ReadOnlyMemory<byte>>> Store { get; } = [];
+	protected readonly Dictionary<string, HashSet<ReadOnlyMemory<byte>>> Store = [];
 
 	public async ValueTask<bool> ContainsAsync(BlobContainerClient container, string directory, ReadOnlyMemory<byte> hash, CancellationToken cancellationToken)
 	{

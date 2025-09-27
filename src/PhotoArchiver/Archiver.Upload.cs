@@ -6,6 +6,7 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.QuickTime;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
@@ -17,7 +18,6 @@ using Extensions;
 using Face;
 using Files;
 using Formats;
-
 using Progress;
 using Storage;
 using Thumbnails;
@@ -62,7 +62,7 @@ public partial class Archiver
 		var container = Client.GetBlobContainerClient(StorageOptions.Container);
 		var lastDirectoryName = null as string;
 
-		var results = new List<FileUploadResult>();
+		var results = new ConcurrentBag<FileUploadResult>();
 
 		// estimate count
 		var processedCount = 0;
@@ -104,8 +104,8 @@ public partial class Archiver
 					result = UploadResult.DateMissing;
 					results.Add(new FileUploadResult(file, result));
 					Logger.Log(UploadResultLogLevelMap[result], $"{result}\t{file.Name}");
-					processedCount++;
-					processedBytes += await item.Info.GetSizeAsync(cancellationToken);
+					Interlocked.Increment(ref processedCount);
+					Interlocked.Add(ref processedBytes, await item.Info.GetSizeAsync(cancellationToken));
 					progressIndicator.SetItemProgress(processedCount);
 					progressIndicator.SetBytesProgress(processedBytes);
 					continue;
@@ -346,8 +346,8 @@ public partial class Archiver
 			}
 			finally
 			{
-				processedCount++;
-				processedBytes += await item.Info.GetSizeAsync(cancellationToken);
+				Interlocked.Increment(ref processedCount);
+				Interlocked.Add(ref processedBytes, await item.Info.GetSizeAsync(cancellationToken));
 				progressIndicator.SetItemProgress(processedCount);
 				progressIndicator.SetBytesProgress(processedBytes);
 			}
@@ -355,7 +355,7 @@ public partial class Archiver
 
 		progressIndicator.ToFinishedState();
 
-		return new ArchiveResult(results);
+		return new ArchiveResult(results.ToList());
 	}
 
 	private async Task<bool?> ExistsAndCompareAsync(BlockBlobClient blob, FileUploadItem item, CancellationToken cancellationToken)

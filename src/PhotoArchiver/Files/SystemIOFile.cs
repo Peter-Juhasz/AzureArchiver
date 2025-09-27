@@ -15,9 +15,9 @@ public class SystemIOFile(FileInfo fileInfo) : IFile
 		return Task.CompletedTask;
 	}
 
-	public Task<long> GetSizeAsync(CancellationToken cancellationToken)
+	public ValueTask<long> GetSizeAsync(CancellationToken cancellationToken)
 	{
-		return Task.FromResult(File.Length);
+		return new(File.Length);
 	}
 
 	public Task<Stream> OpenReadAsync(CancellationToken cancellationToken)
