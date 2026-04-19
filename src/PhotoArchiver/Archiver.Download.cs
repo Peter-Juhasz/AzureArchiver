@@ -107,7 +107,12 @@ public partial class Archiver
 
 			var directory = String.Format(CultureInfo.InvariantCulture, StorageOptions.DirectoryFormat, date);
 
-			var page = await container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, directory)
+			var page = await container.GetBlobsAsync(new GetBlobsOptions()
+			{ 
+				Traits = BlobTraits.Metadata,
+				States = BlobStates.None,
+				Prefix = directory
+			})
 				.Where(b => Match(b, options))
 				.ToListAsync();
 			all.AddRange(page);

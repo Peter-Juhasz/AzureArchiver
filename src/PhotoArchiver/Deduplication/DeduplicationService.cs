@@ -32,11 +32,11 @@ public class DeduplicationService(ILogger<DeduplicationService> logger) : IDedup
 	{
 		logger.LogInformation($"Gathering hashes from '{container.Name}/{directory}/'...");
 
-		return await container.GetBlobsAsync(
-			traits: BlobTraits.None,
-			prefix: directory,
-			cancellationToken: cancellationToken
-		)
+		return await container.GetBlobsAsync(new GetBlobsOptions()
+		{
+			Traits = BlobTraits.None,
+			Prefix = directory,
+		}, cancellationToken)
 			.Select(b => b.Properties.ContentHash)
 			.Where(b => b != null)
 			.Select(b => new ReadOnlyMemory<byte>(b))

@@ -44,7 +44,7 @@ builder = builder
 		// application insights
 		.AddApplicationInsightsTelemetryWorkerService(options =>
 		{
-			options.EnableAdaptiveSampling = false;
+			options.SamplingRatio = 1.0f;
 		})
 
 		// storage
